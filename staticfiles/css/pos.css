@@ -1,23 +1,19 @@
 /* ==========================================================================
    PARQUE SAFARI - SISTEMA WEB DE VENTAS POS
+   Estilos base y componentes táctiles Full HD (1920x1080)
    ========================================================================== */
 
 :root {
     --safari-dark: #0f172a;
     --safari-dark-card: #1e293b;
     --safari-dark-border: #334155;
-    --safari-primary: #f59e0b;
-    /* Safari Gold/Amber */
+    --safari-primary: #f59e0b;       /* Safari Gold/Amber */
     --safari-primary-hover: #d97706;
-    --safari-secondary: #10b981;
-    /* Jungle Green */
+    --safari-secondary: #10b981;     /* Jungle Green */
     --safari-secondary-hover: #059669;
-    --safari-accent: #3b82f6;
-    /* Info Blue */
-    --safari-danger: #ef4444;
-    /* Crimson Red */
-    --safari-warning: #f97316;
-    /* Warm Orange */
+    --safari-accent: #3b82f6;        /* Info Blue */
+    --safari-danger: #ef4444;        /* Crimson Red */
+    --safari-warning: #f97316;       /* Warm Orange */
     --safari-bg: #0b1120;
     --safari-text-main: #f8fafc;
     --safari-text-muted: #94a3b8;
@@ -127,17 +123,8 @@ body {
 }
 
 @keyframes pulseDot {
-
-    0%,
-    100% {
-        opacity: 1;
-        transform: scale(1);
-    }
-
-    50% {
-        opacity: 0.4;
-        transform: scale(0.85);
-    }
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.85); }
 }
 
 .pos-clock {
