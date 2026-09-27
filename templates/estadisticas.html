@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
+        <div>
+            <h2 class="fw-bold mb-1 text-white">Estadísticas y Métricas de Operación</h2>
+            <p class="text-secondary mb-0">Rendimiento diario de ventas, demanda por hora y tiempos de preparación &bull; Parque Safari.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <span class="badge bg-success bg-opacity-25 text-success border border-success p-2 d-flex align-items-center gap-1">
+                <i class="bi bi-broadcast"></i> Datos operativos en tiempo real
+            </span>
+        </div>
+    </div>
+
+    <!-- Indicadores Principales -->
+    <div class="pos-kpi-grid">
+        <div class="pos-kpi-card">
+            <div class="pos-kpi-icon bg-success bg-opacity-25 text-success">
+                <i class="bi bi-cash-coin"></i>
+            </div>
+            <div class="pos-kpi-info">
+                <h3>Total Ventas Hoy</h3>
+                <div class="pos-kpi-value text-success font-monospace">{{ stats.total_ventas_dia }}</div>
+                <div class="pos-kpi-sub">{{ stats.ventas_realizadas }} ventas cerradas</div>
+            </div>
+        </div>
+
+        <div class="pos-kpi-card">
+            <div class="pos-kpi-icon bg-primary bg-opacity-25 text-primary">
+                <i class="bi bi-tag-fill"></i>
+            </div>
+            <div class="pos-kpi-info">
+                <h3>Ticket Promedio</h3>
+                <div class="pos-kpi-value font-monospace">{{ stats.ticket_promedio }}</div>
+                <div class="pos-kpi-sub">Promedio por comensal</div>
+            </div>
+        </div>
+
+        <div class="pos-kpi-card">
+            <div class="pos-kpi-icon bg-warning bg-opacity-25 text-warning">
+                <i class="bi bi-hourglass-split"></i>
+            </div>
+            <div class="pos-kpi-info">
+                <h3>Tiempos Espera Cocina</h3>
+                <div class="pos-kpi-value text-warning font-monospace">{{ stats.tiempo_prom_cocina }}</div>
+                <div class="pos-kpi-sub">Meta interna: &lt; 15 min</div>
+            </div>
+        </div>
+
+        <div class="pos-kpi-card">
+            <div class="pos-kpi-icon bg-info bg-opacity-25 text-info">
+                <i class="bi bi-speedometer"></i>
+            </div>
+            <div class="pos-kpi-info">
+                <h3>Tiempos Espera Bar</h3>
+                <div class="pos-kpi-value text-info font-monospace">{{ stats.tiempo_prom_bar }}</div>
+                <div class="pos-kpi-sub">Meta interna: &lt; 5 min</div>
+            </div>
+        </div>
+
+        <div class="pos-kpi-card">
+            <div class="pos-kpi-icon bg-danger bg-opacity-25 text-danger">
+                <i class="bi bi-table"></i>
+            </div>
+            <div class="pos-kpi-info">
+                <h3>Ocupación Salón</h3>
+                <div class="pos-kpi-value text-danger font-monospace">{{ stats.mesas_ocupadas_ratio }}</div>
+                <div class="pos-kpi-sub">{{ stats.pedidos_preparados }} pedidos despachados</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <!-- Gráfico 1: Ventas por Hora (Simulado con barras CSS de alta estética) -->
+        <div class="col-xl-8">
+            <div class="card bg-dark border-secondary p-4 rounded-4 h-100">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h5 class="fw-bold text-white mb-1">
+                            <i class="bi bi-bar-chart-line-fill text-warning me-2"></i>Curva de Ventas por Hora
+                        </h5>
+                        <small class="text-secondary">Pico de demanda registrado entre 12:00 y 14:00 hrs.</small>
+                    </div>
+                    <span class="badge bg-secondary font-monospace">10:00 - 18:00 hrs</span>
+                </div>
+
+                <!-- Gráfico de Columnas en CSS puro -->
+                <div class="d-flex align-items-end justify-content-between gap-2 pt-3 pb-2" style="height: 250px; border-bottom: 2px solid #334155;">
+                    {% for h in stats.ventas_por_hora %}
+                    <div class="d-flex flex-column align-items-center flex-grow-1 h-100 justify-content-end" title="{{ h.hora }}: {{ h.monto_formateado }}">
+                        <small class="text-warning font-monospace mb-2 fw-semibold" style="font-size: 0.72rem;">{{ h.monto_formateado }}</small>
+                        <div class="w-100 d-flex align-items-end flex-grow-1 px-1">
+                            <div class="w-100 rounded-top" style="height: {{ h.porcentaje }}%; background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%); min-height: 10px; box-shadow: 0 0 10px rgba(245, 158, 11, 0.25);"></div>
+                        </div>
+                        <span class="text-light small mt-2 font-monospace fw-bold" style="font-size: 0.78rem;">{{ h.hora }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráfico 2: Ventas por Categoría -->
+        <div class="col-xl-4">
+            <div class="card bg-dark border-secondary p-4 rounded-4 h-100">
+                <h5 class="fw-bold text-white mb-3">
+                    <i class="bi bi-pie-chart-fill text-info me-2"></i>Ventas por Categoría
+                </h5>
+                <p class="text-secondary small mb-4">Participación sobre el total de facturación:</p>
+
+                <div class="d-flex flex-column gap-3">
+                    {% for c in stats.ventas_por_categoria %}
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-white fw-semibold small">{{ c.categoria }}</span>
+                            <span class="font-monospace text-info small fw-bold">{{ c.total }} ({{ c.porcentaje }}%)</span>
+                        </div>
+                        <div class="progress" style="height: 10px; background-color: #1e293b;">
+                            <div class="progress-bar {% if forloop.first %}bg-warning{% elif forloop.counter == 2 %}bg-info{% elif forloop.counter == 3 %}bg-danger{% else %}bg-secondary{% endif %}" 
+                                 role="progressbar" 
+                                 style="width: {{ c.porcentaje }}%;"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ranking de Productos Más Vendidos -->
+    <div class="card bg-dark border-secondary p-4 rounded-4">
+        <h5 class="fw-bold text-white mb-3">
+            <i class="bi bi-trophy-fill text-warning me-2"></i>Ranking de Productos Más Vendidos Hoy
+        </h5>
+        <div class="table-responsive">
+            <table class="pos-table-custom">
+                <thead>
+                    <tr>
+                        <th>POSICIÓN</th>
+                        <th>PRODUCTO</th>
+                        <th>CANTIDAD VENDIDA</th>
+                        <th>DEMANDA VISUAL</th>
+                        <th>INGRESOS GENERADOS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for prod in stats.top_productos %}
+                    <tr>
+                        <td class="font-monospace fw-bold text-warning fs-5">#{{ forloop.counter }}</td>
+                        <td class="fw-bold text-white fs-6">{{ prod.nombre }}</td>
+                        <td class="font-monospace fw-bold text-info">{{ prod.cantidad }} unidades</td>
+                        <td style="width: 35%;">
+                            <div class="progress" style="height: 8px; background-color: #0b1120;">
+                                <div class="progress-bar bg-success" style="width: {{ prod.porcentaje }}%;"></div>
+                            </div>
+                        </td>
+                        <td class="font-monospace fw-bold text-success fs-6">{{ prod.ingresos }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

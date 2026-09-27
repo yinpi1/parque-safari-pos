@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
+        <div>
+            <h2 class="fw-bold mb-1 text-white">Módulo de Fiados y Consumo Personal</h2>
+            <p class="text-secondary mb-0">Seguimiento de consumos de colaboradores para descuento mensual por nómina.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-info fw-bold d-flex align-items-center gap-2" onclick="alert('Resumen para descuento en nómina generado en PDF (simulado).')">
+                <i class="bi bi-file-earmark-pdf-fill"></i>
+                <span>Generar Resumen Descuento</span>
+            </button>
+            <button class="btn btn-warning fw-bold d-flex align-items-center gap-2 shadow" data-bs-toggle="modal" data-bs-target="#modalRegistrarFiado">
+                <i class="bi bi-plus-circle-fill fs-5"></i>
+                <span>REGISTRAR CONSUMO FIADO</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Indicadores Clave de Deuda -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="p-3 bg-dark rounded-3 border border-warning border-opacity-50 d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-warning small fw-bold">TOTAL CONSUMOS PENDIENTES</span>
+                    <h3 class="fw-bold text-warning font-monospace mb-0">{{ deuda_total }}</h3>
+                </div>
+                <i class="bi bi-wallet2 fs-1 text-warning"></i>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="p-3 bg-dark rounded-3 border border-secondary d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-secondary small fw-bold">COLABORADORES ACTIVOS CON SALDO</span>
+                    <h3 class="fw-bold text-white mb-0">{{ total_colaboradores }} Trabajadores</h3>
+                </div>
+                <i class="bi bi-people-fill fs-1 text-info"></i>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="p-3 bg-dark rounded-3 border border-secondary d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-secondary small fw-bold">TOTAL TICKETS FIADOS MES</span>
+                    <h3 class="fw-bold text-success font-monospace mb-0">{{ consumos_pendientes }} vales</h3>
+                </div>
+                <i class="bi bi-receipt fs-1 text-success"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Buscador y Filtro -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="input-group" style="max-width: 380px;">
+            <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-search"></i></span>
+            <input type="text" id="genericTableSearch" class="form-control bg-dark border-secondary text-white" placeholder="Buscar por colaborador o área...">
+        </div>
+        <div class="d-flex gap-2">
+            <span class="badge bg-secondary p-2">Límite de crédito estándar: $50.000 / mes</span>
+        </div>
+    </div>
+
+    <!-- Tabla de Fiados -->
+    <div class="table-responsive">
+        <table class="pos-table-custom filterable-table">
+            <thead>
+                <tr>
+                    <th>COLABORADOR</th>
+                    <th>RUT</th>
+                    <th>ÁREA / GRUPO</th>
+                    <th>ÚLTIMO CONSUMO</th>
+                    <th>CANT.</th>
+                    <th>VALOR ÚLTIMO</th>
+                    <th>FECHA</th>
+                    <th>TOTAL ACUMULADO</th>
+                    <th>ESTADO</th>
+                    <th class="text-end">ACCIONES</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in fiados %}
+                <tr>
+                    <td>
+                        <span class="fw-bold text-white d-block">{{ f.trabajador }}</span>
+                        <small class="text-secondary">{{ f.consumos_mes }} consumos este mes</small>
+                    </td>
+                    <td class="font-monospace text-secondary">{{ f.rut }}</td>
+                    <td>
+                        <span class="badge bg-dark border border-secondary text-warning">
+                            {{ f.cargo_grupo }}
+                        </span>
+                    </td>
+                    <td class="text-light">{{ f.ultimo_producto }}</td>
+                    <td class="font-monospace text-center fw-bold">{{ f.cantidad }}</td>
+                    <td class="font-monospace text-light">{{ f.valor_formateado }}</td>
+                    <td class="text-secondary small">{{ f.fecha }}</td>
+                    <td>
+                        <span class="fw-bold font-monospace text-warning fs-6">{{ f.total_formateado }}</span>
+                    </td>
+                    <td>
+                        {% if f.estado == 'Al día' %}
+                            <span class="badge bg-success bg-opacity-25 text-success">Al día</span>
+                        {% else %}
+                            <span class="badge bg-danger bg-opacity-25 text-danger">Por descontar</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <div class="btn-group">
+                            <button class="btn btn-outline-info btn-sm" title="Consultar Consumos" onclick="alert('Detalle de vales para {{ f.trabajador }}: {{ f.total_formateado }} acumulados.')">
+                                <i class="bi bi-eye-fill"></i> Detalle
+                            </button>
+                            <button class="btn btn-outline-warning btn-sm" title="Nuevo Vale" data-bs-toggle="modal" data-bs-target="#modalRegistrarFiado">
+                                <i class="bi bi-plus"></i> Vale
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ==========================================================================
+     MODAL DE REGISTRO DE CONSUMO FIADO
+     ========================================================================== -->
+<div class="modal fade" id="modalRegistrarFiado" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-md modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                    <i class="bi bi-journal-bookmark-fill text-warning"></i>
+                    <span>Registrar Vale de Consumo Fiado</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form onsubmit="event.preventDefault(); alert('Consumo fiado registrado en cuenta del colaborador (simulado).'); bootstrap.Modal.getInstance(document.getElementById('modalRegistrarFiado')).hide();">
+                    <div class="mb-3">
+                        <label class="form-label small text-secondary fw-bold">SELECCIONAR COLABORADOR</label>
+                        <select class="form-select bg-dark border-secondary text-white" required>
+                            <option value="">Seleccione trabajador de Parque Safari...</option>
+                            {% for f in fiados %}
+                            <option value="{{ f.id }}">{{ f.trabajador }} — {{ f.cargo_grupo }} (Deuda: {{ f.total_formateado }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small text-secondary fw-bold">PRODUCTO O MENÚ A CONSUMIR</label>
+                        <input type="text" class="form-control bg-dark border-secondary text-white" placeholder="Ej: Hamburguesa Safari + Bebida" required>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small text-secondary fw-bold">CANTIDAD</label>
+                            <input type="number" class="form-control bg-dark border-secondary text-white font-monospace" value="1" min="1" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small text-secondary fw-bold">MONTO TOTAL (CLP)</label>
+                            <input type="number" class="form-control bg-dark border-secondary text-white font-monospace" placeholder="8790" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small text-secondary fw-bold">AUTORIZACIÓN / FIRMA DIGITAL</label>
+                        <input type="password" class="form-control bg-dark border-secondary text-white" placeholder="PIN de 4 dígitos del trabajador" value="8821">
+                        <small class="text-secondary">Simulación de validación interna del colaborador.</small>
+                    </div>
+
+                    <div class="modal-footer px-0 pb-0 mt-4 border-top border-secondary">
+                        <button type="button" class="btn btn-secondary px-4 fw-bold" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-warning px-4 fw-bold">Confirmar Vale Fiado</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

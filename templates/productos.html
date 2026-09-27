@@ -1,0 +1,230 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <!-- Encabezado del Módulo -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
+        <div>
+            <h2 class="fw-bold mb-1 text-white">Catálogo de Productos</h2>
+            <p class="text-secondary mb-0">Gestión de precios, destinos de preparación (Cocina/Bar) y estados.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-warning fw-bold d-flex align-items-center gap-2 px-3 shadow" data-bs-toggle="modal" data-bs-target="#modalNuevoProducto">
+                <i class="bi bi-plus-circle-fill fs-5"></i>
+                <span>NUEVO PRODUCTO</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Indicadores Rápidos de Catálogo -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="p-3 bg-dark rounded-3 border border-secondary d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-secondary small fw-bold">TOTAL ÍTEMS</span>
+                    <h3 class="fw-bold text-white mb-0">{{ total_productos }}</h3>
+                </div>
+                <i class="bi bi-boxes fs-1 text-warning"></i>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="p-3 bg-dark rounded-3 border border-secondary d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-secondary small fw-bold">EN COCINA</span>
+                    <h3 class="fw-bold text-warning mb-0">{{ total_cocina }}</h3>
+                </div>
+                <i class="bi bi-fire fs-1 text-warning"></i>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="p-3 bg-dark rounded-3 border border-secondary d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-secondary small fw-bold">EN BAR</span>
+                    <h3 class="fw-bold text-info mb-0">{{ total_bar }}</h3>
+                </div>
+                <i class="bi bi-cup-straw fs-1 text-info"></i>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="p-3 bg-dark rounded-3 border border-secondary d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-secondary small fw-bold">PRODUCTO LISTO</span>
+                    <h3 class="fw-bold text-success mb-0">{{ total_listos }}</h3>
+                </div>
+                <i class="bi bi-box2-heart fs-1 text-success"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtro y Búsqueda -->
+    <div class="d-flex flex-wrap gap-2 mb-3 align-items-center justify-content-between">
+        <div class="input-group" style="max-width: 400px;">
+            <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-search"></i></span>
+            <input type="text" id="genericTableSearch" class="form-control bg-dark border-secondary text-white" placeholder="Filtrar por nombre o categoría...">
+        </div>
+        <div class="d-flex gap-2">
+            <span class="badge bg-secondary p-2 d-flex align-items-center gap-1">
+                <i class="bi bi-check-circle-fill text-success"></i> {{ total_activos }} Productos Activos
+            </span>
+        </div>
+    </div>
+
+    <!-- Tabla de Productos -->
+    <div class="table-responsive">
+        <table class="pos-table-custom filterable-table">
+            <thead>
+                <tr>
+                    <th>CÓDIGO</th>
+                    <th>PRODUCTO</th>
+                    <th>CATEGORÍA</th>
+                    <th>PRECIO</th>
+                    <th>TIPO DE PRODUCTO</th>
+                    <th>DESTINO</th>
+                    <th>ESTADO</th>
+                    <th class="text-end">ACCIONES</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for prod in productos %}
+                <tr>
+                    <td class="font-monospace text-secondary">{{ prod.codigo }}</td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="p-2 rounded bg-dark border border-secondary text-warning">
+                                <i class="bi {{ prod.icono }}"></i>
+                            </div>
+                            <div>
+                                <span class="fw-bold text-white d-block">{{ prod.nombre }}</span>
+                                <small class="text-secondary">{{ prod.descripcion|truncatechars:45 }}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="badge bg-dark border border-secondary text-light px-2 py-1">
+                            {{ prod.categoria_nombre }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="fw-bold font-monospace text-info fs-6">{{ prod.precio_formateado }}</span>
+                    </td>
+                    <td>
+                        {% if prod.tipo == 'Requiere preparación' %}
+                            <span class="badge bg-warning text-dark fw-bold">
+                                <i class="bi bi-gear-wide-connected me-1"></i> Requiere Preparación
+                            </span>
+                        {% else %}
+                            <span class="badge bg-success bg-opacity-25 text-success border border-success fw-bold">
+                                <i class="bi bi-check2-circle me-1"></i> Producto Listo
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if prod.destino == 'Cocina' %}
+                            <span class="badge badge-cocina"><i class="bi bi-fire me-1"></i> Cocina</span>
+                        {% elif prod.destino == 'Bar' %}
+                            <span class="badge badge-bar"><i class="bi bi-cup-straw me-1"></i> Bar</span>
+                        {% else %}
+                            <span class="badge badge-listo"><i class="bi bi-box2-heart me-1"></i> Directo</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge bg-success text-white">Activo</span>
+                    </td>
+                    <td class="text-end">
+                        <div class="btn-group">
+                            <button class="btn btn-outline-light btn-sm" title="Editar" data-bs-toggle="modal" data-bs-target="#modalNuevoProducto">
+                                <i class="bi bi-pencil-fill"></i>
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm" title="Desactivar" onclick="alert('Acción simulada: El producto se mantendría inactivo en la base de datos futura.')">
+                                <i class="bi bi-trash-fill"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ==========================================================================
+     MODAL DE CREACIÓN / EDICIÓN DE PRODUCTO (Maqueta de formulario)
+     ========================================================================== -->
+<div class="modal fade" id="modalNuevoProducto" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                    <i class="bi bi-box-seam text-warning"></i>
+                    <span>Nuevo / Editar Producto</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form id="formDemoProducto" onsubmit="event.preventDefault(); alert('Producto guardado en memoria de prueba visual.'); bootstrap.Modal.getInstance(document.getElementById('modalNuevoProducto')).hide();">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small text-secondary fw-bold">CÓDIGO INTERNO</label>
+                            <input type="text" class="form-control bg-dark border-secondary text-white" value="SAF-015" required>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label small text-secondary fw-bold">NOMBRE DEL PRODUCTO</label>
+                            <input type="text" class="form-control bg-dark border-secondary text-white" placeholder="Ej: Lomito Safari Palta" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small text-secondary fw-bold">CATEGORÍA</label>
+                            <select class="form-select bg-dark border-secondary text-white">
+                                <option value="comidas">Comidas y Platos</option>
+                                <option value="bebidas">Bebidas y Líquidos</option>
+                                <option value="snacks">Snacks y Picoteo</option>
+                                <option value="helados">Helados y Postres</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-secondary fw-bold">PRECIO DE VENTA (CLP)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-dark border-secondary text-secondary">$</span>
+                                <input type="number" class="form-control bg-dark border-secondary text-white font-monospace" placeholder="6990" required>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small text-secondary fw-bold">TIPO DE PRODUCTO</label>
+                            <select class="form-select bg-dark border-secondary text-white">
+                                <option value="preparacion">Producto requiere preparación</option>
+                                <option value="listo">Producto listo para entrega directa</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-secondary fw-bold">ÁREA DE DESTINO (ENRUTAMIENTO)</label>
+                            <select class="form-select bg-dark border-secondary text-white">
+                                <option value="Cocina">Cocina (KDS / Impresora Caliente)</option>
+                                <option value="Bar">Bar (BDS / Barra de Líquidos)</option>
+                                <option value="Directo">Entrega Directa en Caja</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label small text-secondary fw-bold">DESCRIPCIÓN / INGREDIENTES</label>
+                            <textarea class="form-control bg-dark border-secondary text-white" rows="2" placeholder="Detalle de ingredientes o notas de porción..."></textarea>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small text-secondary fw-bold">ESTADO INICIAL</label>
+                            <div class="form-check form-switch mt-2">
+                                <input class="form-check-input" type="checkbox" id="prodActivoCheck" checked>
+                                <label class="form-check-label text-white" for="prodActivoCheck">Producto Habilitado para Venta</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer px-0 pb-0 mt-4 border-top border-secondary">
+                        <button type="button" class="btn btn-secondary px-4 fw-bold" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-warning px-4 fw-bold">Guardar Producto</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
+        <div>
+            <h2 class="fw-bold mb-1 text-white">Módulo de Distribución de Ventas</h2>
+            <p class="text-secondary mb-0">Visualización del flujo de enrutamiento: cómo cada producto de una venta se deriva a Cocina o Bar.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'cocina' %}" class="btn btn-outline-warning fw-bold d-flex align-items-center gap-2">
+                <i class="bi bi-fire"></i>
+                <span>Ver Cocina KDS</span>
+            </a>
+            <a href="{% url 'bar' %}" class="btn btn-outline-info fw-bold d-flex align-items-center gap-2">
+                <i class="bi bi-cup-straw"></i>
+                <span>Ver Bar BDS</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Diagrama Conceptual del Flujo -->
+    <div class="card bg-dark border-secondary p-4 rounded-4 mb-4">
+        <h5 class="fw-bold text-white mb-3">
+            <i class="bi bi-diagram-3-fill text-warning me-2"></i>Arquitectura de Enrutamiento Automático
+        </h5>
+        <div class="row g-3 text-center">
+            <div class="col-md-4">
+                <div class="p-3 bg-dark rounded-3 border border-warning">
+                    <div class="fs-2 text-warning mb-2"><i class="bi bi-cart-check-fill"></i></div>
+                    <h6 class="fw-bold text-white mb-1">1. Venta POS Confirmada</h6>
+                    <small class="text-secondary">El cajero o garzón ingresa el pedido con comida, bebestibles y postres.</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-3 bg-dark rounded-3 border border-danger">
+                    <div class="fs-2 text-danger mb-2"><i class="bi bi-fire"></i></div>
+                    <h6 class="fw-bold text-white mb-1">2. Enrutamiento a COCINA (KDS)</h6>
+                    <small class="text-secondary">Hamburguesas, churrascos, completos, papas y platos calientes.</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-3 bg-dark rounded-3 border border-info">
+                    <div class="fs-2 text-info mb-2"><i class="bi bi-cup-straw"></i></div>
+                    <h6 class="fw-bold text-white mb-1">3. Enrutamiento a BAR (BDS)</h6>
+                    <small class="text-secondary">Jugos naturales, cervezas schop, cafés dobles y postres helados.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Representación de Ventas Distribuidas en Árbol / Nodos -->
+    <h5 class="fw-bold text-white mb-3">
+        <i class="bi bi-tree-fill text-success me-2"></i>Distribución de Transacciones Recientes
+    </h5>
+
+    <div class="row g-4">
+        {% for v in distribucion %}
+        <div class="col-xl-6">
+            <div class="card bg-dark border-secondary p-4 rounded-4 h-100 shadow">
+                <!-- Encabezado de Venta -->
+                <div class="d-flex justify-content-between align-items-center pb-3 border-bottom border-secondary mb-3">
+                    <div>
+                        <span class="badge bg-warning text-dark font-monospace fs-6 px-3 py-1">
+                            VENTA #{{ v.venta_num }}
+                        </span>
+                        <span class="badge bg-secondary ms-2">{{ v.modalidad }}</span>
+                    </div>
+                    <div class="text-end">
+                        <span class="text-secondary small d-block">HORA: {{ v.hora }} &bull; {{ v.garzon }}</span>
+                        <strong class="text-success font-monospace fs-5">{{ v.total }}</strong>
+                    </div>
+                </div>
+
+                <!-- Desglose Gráfico en Árbol -->
+                <div class="ps-2">
+                    <div class="text-secondary small fw-bold mb-2">
+                        <i class="bi bi-arrow-return-right me-1"></i>DESGLOSE Y DESTINO POR PRODUCTO:
+                    </div>
+
+                    <div class="d-flex flex-column gap-3 mt-3">
+                        {% for item in v.items %}
+                        <div class="p-3 rounded-3 border {% if item.destino == 'COCINA' %}border-warning bg-warning bg-opacity-10{% elif item.destino == 'BAR' %}border-info bg-info bg-opacity-10{% else %}border-secondary bg-dark{% endif %} d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="badge bg-dark border border-secondary text-white font-monospace px-2 py-1">
+                                    {{ item.cant }}x
+                                </span>
+                                <div>
+                                    <span class="fw-bold text-white fs-6 d-block">{{ item.nombre }}</span>
+                                    <small class="text-secondary">Estado actual: <strong>{{ item.estado }}</strong></small>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge {% if item.destino == 'COCINA' %}bg-danger text-white{% elif item.destino == 'BAR' %}bg-primary text-white{% else %}bg-secondary text-white{% endif %} px-3 py-2 fw-bold font-monospace fs-6">
+                                    &rarr; {{ item.destino }}
+                                </span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

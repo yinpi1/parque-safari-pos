@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
+        <div>
+            <h2 class="fw-bold mb-1 text-white">Módulo de Menús y Combos</h2>
+            <p class="text-secondary mb-0">Gestión de paquetes promocionales, combos familiares y packs de aventura.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-warning fw-bold d-flex align-items-center gap-2 px-3 shadow" data-bs-toggle="modal" data-bs-target="#modalNuevoMenu">
+                <i class="bi bi-stars fs-5"></i>
+                <span>NUEVO MENÚ / COMBO</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Grid de Combos Destacados -->
+    <div class="row g-3 mb-4">
+        {% for m in menus %}
+        <div class="col-md-6 col-xl-3">
+            <div class="card bg-dark border-secondary h-100 p-3 rounded-4 position-relative">
+                <span class="badge bg-success position-absolute top-0 end-0 m-3 px-3 py-1">
+                    {{ m.ahorro }}
+                </span>
+                <div class="p-2 rounded bg-warning bg-opacity-10 text-warning d-inline-block mb-3" style="width: fit-content;">
+                    <i class="bi bi-stars fs-3"></i>
+                </div>
+                <h5 class="fw-bold text-white mb-1">{{ m.nombre }}</h5>
+                <span class="badge bg-secondary font-monospace mb-2" style="width: fit-content;">{{ m.codigo }}</span>
+                <p class="text-secondary small flex-grow-1">
+                    <strong class="text-light">Incluye:</strong> {{ m.productos_incluidos }}
+                </p>
+                <div class="border-top border-secondary pt-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="text-secondary small d-block">Precio Combo:</span>
+                        <span class="fw-bold fs-4 text-info font-monospace">{{ m.precio_formateado }}</span>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-outline-light btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuevoMenu" title="Editar">
+                            <i class="bi bi-pencil-fill"></i>
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm" title="Eliminar" onclick="alert('Acción simulada: combo desactivado.')">
+                            <i class="bi bi-trash-fill"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Tabla de Control de Menús -->
+    <h5 class="fw-bold text-white mb-3">Detalle Operativo de Combos</h5>
+    <div class="table-responsive">
+        <table class="pos-table-custom">
+            <thead>
+                <tr>
+                    <th>CÓDIGO</th>
+                    <th>NOMBRE DEL MENÚ</th>
+                    <th>PRODUCTOS ASOCIADOS</th>
+                    <th>HORARIO / DISPONIBILIDAD</th>
+                    <th>PRECIO</th>
+                    <th>BENEFICIO</th>
+                    <th>ESTADO</th>
+                    <th class="text-end">ACCIONES</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in menus %}
+                <tr>
+                    <td class="font-monospace text-secondary">{{ m.codigo }}</td>
+                    <td class="fw-bold text-white">{{ m.nombre }}</td>
+                    <td class="text-light small">{{ m.productos_incluidos }}</td>
+                    <td><span class="badge bg-dark border border-secondary text-light">{{ m.disponibilidad }}</span></td>
+                    <td class="fw-bold font-monospace text-info">{{ m.precio_formateado }}</td>
+                    <td><span class="badge bg-success bg-opacity-25 text-success">{{ m.ahorro }}</span></td>
+                    <td><span class="badge bg-success text-white">Activo</span></td>
+                    <td class="text-end">
+                        <button class="btn btn-outline-light btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuevoMenu">
+                            <i class="bi bi-pencil-fill"></i> Editar
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ==========================================================================
+     MODAL DE CREACIÓN / EDICIÓN DE MENÚ (Formulario maqueta)
+     ========================================================================== -->
+<div class="modal fade" id="modalNuevoMenu" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                    <i class="bi bi-stars text-warning"></i>
+                    <span>Configuración de Menú / Combo</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form onsubmit="event.preventDefault(); alert('Menú actualizado en memoria visual.'); bootstrap.Modal.getInstance(document.getElementById('modalNuevoMenu')).hide();">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small text-secondary fw-bold">CÓDIGO COMBO</label>
+                            <input type="text" class="form-control bg-dark border-secondary text-white font-monospace" value="MENU-SAF-05" required>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label small text-secondary fw-bold">NOMBRE DEL MENÚ</label>
+                            <input type="text" class="form-control bg-dark border-secondary text-white" placeholder="Ej: Pack Sabana Salvaje" required>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label small text-secondary fw-bold">PRODUCTOS QUE COMPONEN EL MENÚ</label>
+                            <textarea class="form-control bg-dark border-secondary text-white" rows="2" placeholder="Selección o lista de productos combinados..." required></textarea>
+                            <small class="text-secondary">En el siguiente sprint se seleccionarán directamente desde la base de datos de productos.</small>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small text-secondary fw-bold">PRECIO COMBO PROMOCIONAL (CLP)</label>
+                            <input type="number" class="form-control bg-dark border-secondary text-white font-monospace" placeholder="10990" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-secondary fw-bold">HORARIO DISPONIBLE</label>
+                            <input type="text" class="form-control bg-dark border-secondary text-white" value="Todo el día">
+                        </div>
+                    </div>
+                    <div class="modal-footer px-0 pb-0 mt-4 border-top border-secondary">
+                        <button type="button" class="btn btn-secondary px-4 fw-bold" data-bs-dismiss="modal">Cerrar</button>
+                        <button type="submit" class="btn btn-warning px-4 fw-bold">Guardar Menú</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

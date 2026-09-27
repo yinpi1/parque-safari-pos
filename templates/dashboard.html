@@ -1,0 +1,252 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <!-- Header de bienvenida y estado general -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
+        <div>
+            <h2 class="fw-bold mb-1 text-white">Panel Principal — Parque Safari</h2>
+            <div class="text-secondary">
+                <i class="bi bi-calendar3 me-1"></i> {{ fecha_actual }} &bull; 
+                <span class="text-warning fw-semibold">Operando en Terminal {{ config.terminal_caja }}</span>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'pos' %}" class="btn btn-warning btn-lg fw-bold px-4 shadow d-flex align-items-center gap-2">
+                <i class="bi bi-cart-plus-fill fs-4"></i>
+                <span>NUEVA VENTA (POS)</span>
+            </a>
+            <a href="{% url 'mesas' %}" class="btn btn-outline-info fw-bold px-3 d-flex align-items-center gap-2">
+                <i class="bi bi-layout-text-window-reverse"></i>
+                <span>VER MESAS</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Indicadores Visuales / KPIs del Día -->
+    <div class="pos-kpi-grid">
+        <div class="pos-kpi-card">
+            <div class="pos-kpi-icon bg-success bg-opacity-25 text-success">
+                <i class="bi bi-currency-dollar"></i>
+            </div>
+            <div class="pos-kpi-info">
+                <h3>Ventas del Día</h3>
+                <div class="pos-kpi-value text-success font-monospace">{{ estadisticas.total_ventas_dia }}</div>
+                <div class="pos-kpi-sub">{{ estadisticas.ventas_realizadas }} transacciones registradas</div>
+            </div>
+        </div>
+
+        <div class="pos-kpi-card">
+            <div class="pos-kpi-icon bg-primary bg-opacity-25 text-primary">
+                <i class="bi bi-receipt"></i>
+            </div>
+            <div class="pos-kpi-info">
+                <h3>Ticket Promedio</h3>
+                <div class="pos-kpi-value font-monospace">{{ estadisticas.ticket_promedio }}</div>
+                <div class="pos-kpi-sub">+12% vs. fin de semana anterior</div>
+            </div>
+        </div>
+
+        <div class="pos-kpi-card">
+            <div class="pos-kpi-icon bg-warning bg-opacity-25 text-warning">
+                <i class="bi bi-clock-history"></i>
+            </div>
+            <div class="pos-kpi-info">
+                <h3>Pedidos en Cocina</h3>
+                <div class="pos-kpi-value text-warning font-monospace">{{ pedidos_cocina_activos }} activos</div>
+                <div class="pos-kpi-sub">Tiempo promedio: {{ estadisticas.tiempo_prom_cocina }}</div>
+            </div>
+        </div>
+
+        <div class="pos-kpi-card">
+            <div class="pos-kpi-icon bg-info bg-opacity-25 text-info">
+                <i class="bi bi-cup-straw"></i>
+            </div>
+            <div class="pos-kpi-info">
+                <h3>Pedidos en Bar</h3>
+                <div class="pos-kpi-value text-info font-monospace">{{ pedidos_bar_activos }} activos</div>
+                <div class="pos-kpi-sub">Tiempo promedio: {{ estadisticas.tiempo_prom_bar }}</div>
+            </div>
+        </div>
+
+        <div class="pos-kpi-card">
+            <div class="pos-kpi-icon bg-danger bg-opacity-25 text-danger">
+                <i class="bi bi-pin-map-fill"></i>
+            </div>
+            <div class="pos-kpi-info">
+                <h3>Mesas Ocupadas</h3>
+                <div class="pos-kpi-value text-danger font-monospace">{{ total_mesas_ocupadas }} / {{ total_mesas }}</div>
+                <div class="pos-kpi-sub">Capacidad actual al 42%</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección de Accesos Rápidos Táctiles a Módulos -->
+    <h4 class="fw-bold text-white mb-3 mt-4">
+        <i class="bi bi-grid-3x3-gap-fill text-warning me-2"></i>Accesos Rápidos a Módulos
+    </h4>
+
+    <div class="row g-3 mb-5">
+        <!-- Punto de Venta -->
+        <div class="col-md-4 col-xl-3">
+            <a href="{% url 'pos' %}" class="text-decoration-none">
+                <div class="card bg-dark border-secondary h-100 p-3 hover-shadow transition-card">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="p-3 rounded-3 bg-warning text-dark fs-2">
+                            <i class="bi bi-calculator"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold text-white mb-1">Punto de Venta</h5>
+                            <p class="text-secondary small mb-0">Atención táctil rápida, carrito, selección Bar/Mesa y emisión.</p>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Cocina KDS -->
+        <div class="col-md-4 col-xl-3">
+            <a href="{% url 'cocina' %}" class="text-decoration-none">
+                <div class="card bg-dark border-secondary h-100 p-3 hover-shadow transition-card">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="p-3 rounded-3 bg-danger text-white fs-2">
+                            <i class="bi bi-fire"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold text-white mb-1">Cocina (KDS)</h5>
+                            <p class="text-secondary small mb-0">Comandas en tiempo real, estados de preparación y tiempos.</p>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Bar BDS -->
+        <div class="col-md-4 col-xl-3">
+            <a href="{% url 'bar' %}" class="text-decoration-none">
+                <div class="card bg-dark border-secondary h-100 p-3 hover-shadow transition-card">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="p-3 rounded-3 bg-info text-dark fs-2">
+                            <i class="bi bi-cup-straw"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold text-white mb-1">Bar (BDS)</h5>
+                            <p class="text-secondary small mb-0">Despacho de jugos, cervezas y cafetería en barra.</p>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Distribución -->
+        <div class="col-md-4 col-xl-3">
+            <a href="{% url 'distribucion' %}" class="text-decoration-none">
+                <div class="card bg-dark border-secondary h-100 p-3 hover-shadow transition-card">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="p-3 rounded-3 bg-primary text-white fs-2">
+                            <i class="bi bi-diagram-3"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold text-white mb-1">Distribución</h5>
+                            <p class="text-secondary small mb-0">Enrutamiento automático de ítems a Cocina, Bar o Entrega directa.</p>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Mapa de Mesas -->
+        <div class="col-md-4 col-xl-3">
+            <a href="{% url 'mesas' %}" class="text-decoration-none">
+                <div class="card bg-dark border-secondary h-100 p-3 hover-shadow transition-card">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="p-3 rounded-3 bg-secondary text-white fs-2">
+                            <i class="bi bi-layout-text-window-reverse"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold text-white mb-1">Mapa de Mesas</h5>
+                            <p class="text-secondary small mb-0">Estado de las 12 mesas, tiempos transcurridos y reasignación.</p>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Fiados Personal -->
+        <div class="col-md-4 col-xl-3">
+            <a href="{% url 'fiados' %}" class="text-decoration-none">
+                <div class="card bg-dark border-secondary h-100 p-3 hover-shadow transition-card">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="p-3 rounded-3 bg-success text-white fs-2">
+                            <i class="bi bi-journal-bookmark-fill"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold text-white mb-1">Fiados Personal</h5>
+                            <p class="text-secondary small mb-0">Registro y resumen de consumos a descontar por planilla.</p>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Catálogo de Productos -->
+        <div class="col-md-4 col-xl-3">
+            <a href="{% url 'productos' %}" class="text-decoration-none">
+                <div class="card bg-dark border-secondary h-100 p-3 hover-shadow transition-card">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="p-3 rounded-3 bg-warning bg-opacity-50 text-warning fs-2">
+                            <i class="bi bi-boxes"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold text-white mb-1">Productos</h5>
+                            <p class="text-secondary small mb-0">Precios, categorías y clasificación Listo vs Preparación.</p>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Estadísticas & Reportes -->
+        <div class="col-md-4 col-xl-3">
+            <a href="{% url 'estadisticas' %}" class="text-decoration-none">
+                <div class="card bg-dark border-secondary h-100 p-3 hover-shadow transition-card">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="p-3 rounded-3 bg-info bg-opacity-50 text-info fs-2">
+                            <i class="bi bi-graph-up-arrow"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold text-white mb-1">Estadísticas</h5>
+                            <p class="text-secondary small mb-0">Curvas de ventas por hora, productos top y tiempos de espera.</p>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Resumen Operativo de Mesas Rápidas -->
+    <div class="card bg-dark border-secondary p-3 rounded-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold text-white mb-0">
+                <i class="bi bi-table text-info me-2"></i>Estado Rápido de Salón (12 Mesas)
+            </h5>
+            <span class="badge bg-secondary">Actualizado en vivo</span>
+        </div>
+        <div class="row g-2">
+            {% for mesa in mesas %}
+            <div class="col-6 col-md-3 col-lg-2">
+                <div class="p-2 rounded-3 border {% if mesa.estado == 'Ocupada' %}border-danger bg-danger bg-opacity-10 text-light{% else %}border-success bg-success bg-opacity-10 text-light{% endif %} text-center">
+                    <div class="fw-bold fs-6">{{ mesa.numero }}</div>
+                    <small class="d-block {% if mesa.estado == 'Ocupada' %}text-danger fw-bold{% else %}text-success{% endif %}">
+                        {{ mesa.estado }}
+                    </small>
+                    <small class="text-secondary font-monospace" style="font-size: 0.7rem;">
+                        {% if mesa.estado == 'Ocupada' %}{{ mesa.tiempo_transcurrido }}{% else %}Libre{% endif %}
+                    </small>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

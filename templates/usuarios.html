@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
+        <div>
+            <h2 class="fw-bold mb-1 text-white">Usuarios y Cargos del Sistema</h2>
+            <p class="text-secondary mb-0">Administración de colaboradores, asignación de roles y terminales POS.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-warning fw-bold d-flex align-items-center gap-2 shadow" data-bs-toggle="modal" data-bs-target="#modalNuevoUsuario">
+                <i class="bi bi-person-plus-fill fs-5"></i>
+                <span>NUEVO USUARIO</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Navegación por Pestañas (Usuarios / Cargos) -->
+    <ul class="nav nav-pills mb-4" id="usuariosTab" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link active px-4 py-2 fw-bold" id="usuarios-tab" data-bs-toggle="pill" data-bs-target="#tab-usuarios" type="button">
+                <i class="bi bi-people-fill me-2"></i> Usuarios del Sistema ({{ total_usuarios }})
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link px-4 py-2 fw-bold" id="cargos-tab" data-bs-toggle="pill" data-bs-target="#tab-cargos" type="button">
+                <i class="bi bi-shield-lock-fill me-2"></i> Cargos y Roles ({{ total_cargos }})
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="usuariosTabContent">
+        <!-- PESTAÑA 1: LISTADO DE USUARIOS -->
+        <div class="tab-pane fade show active" id="tab-usuarios">
+            <div class="table-responsive">
+                <table class="pos-table-custom">
+                    <thead>
+                        <tr>
+                            <th>NOMBRE COMPLETO</th>
+                            <th>USUARIO</th>
+                            <th>CARGO / ROL</th>
+                            <th>TERMINAL / CAJA</th>
+                            <th>ÚLTIMO ACCESO</th>
+                            <th>ESTADO</th>
+                            <th class="text-end">ACCIONES</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in usuarios %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="pos-user-avatar">
+                                        {{ u.nombre|slice:":2"|upper }}
+                                    </div>
+                                    <div>
+                                        <span class="fw-bold text-white d-block">{{ u.nombre }}</span>
+                                        <small class="text-secondary">{{ u.email }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td><span class="font-monospace text-info">@{{ u.usuario }}</span></td>
+                            <td>
+                                <span class="badge {% if u.cargo == 'Administrador' %}bg-primary{% elif u.cargo == 'Cajero' %}bg-warning text-dark{% elif u.cargo == 'Cocina' %}bg-danger{% elif u.cargo == 'Bar' %}bg-info text-dark{% else %}bg-secondary{% endif %} px-2 py-1">
+                                    {{ u.cargo }}
+                                </span>
+                            </td>
+                            <td class="text-light small">{{ u.caja_asignada }}</td>
+                            <td class="text-secondary small">{{ u.ultimo_acceso }}</td>
+                            <td>
+                                {% if u.estado == 'Activo' %}
+                                    <span class="badge bg-success">Activo</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Inactivo</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <div class="btn-group">
+                                    <button class="btn btn-outline-light btn-sm" title="Editar" data-bs-toggle="modal" data-bs-target="#modalNuevoUsuario">
+                                        <i class="bi bi-pencil-fill"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger btn-sm" title="Desactivar" onclick="alert('Acción simulada: Estado de usuario modificado.')">
+                                        <i class="bi bi-person-x-fill"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- PESTAÑA 2: GESTIÓN DE CARGOS -->
+        <div class="tab-pane fade" id="tab-cargos">
+            <div class="row g-3">
+                {% for c in cargos %}
+                <div class="col-md-6 col-xl-4">
+                    <div class="card bg-dark border-secondary h-100 p-4 rounded-4 position-relative">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h4 class="fw-bold text-white mb-0">{{ c.nombre }}</h4>
+                            <span class="badge bg-warning text-dark font-monospace">{{ c.nivel }}</span>
+                        </div>
+                        <p class="text-secondary small mb-4 flex-grow-1">
+                            {{ c.descripcion }}
+                        </p>
+                        <div class="d-flex justify-content-between align-items-center pt-3 border-top border-secondary">
+                            <span class="text-light small">
+                                <i class="bi bi-person-check-fill text-success me-1"></i>
+                                <strong>{{ c.usuarios_asociados }}</strong> Usuarios activos
+                            </span>
+                            <button class="btn btn-outline-warning btn-sm fw-bold" onclick="alert('Permisos de rol editables en siguiente sprint.')">
+                                Configurar Permisos
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================================================
+     MODAL DE CREACIÓN / EDICIÓN DE USUARIO
+     ========================================================================== -->
+<div class="modal fade" id="modalNuevoUsuario" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                    <i class="bi bi-person-plus-fill text-warning"></i>
+                    <span>Nuevo / Editar Usuario del Sistema</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form onsubmit="event.preventDefault(); alert('Usuario simulado registrado exitosamente.'); bootstrap.Modal.getInstance(document.getElementById('modalNuevoUsuario')).hide();">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small text-secondary fw-bold">NOMBRE COMPLETO</label>
+                            <input type="text" class="form-control bg-dark border-secondary text-white" placeholder="Ej: Marcela Gómez" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-secondary fw-bold">NOMBRE DE USUARIO</label>
+                            <input type="text" class="form-control bg-dark border-secondary text-white" placeholder="mgomez" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small text-secondary fw-bold">CORREO CORPORATIVO</label>
+                            <input type="email" class="form-control bg-dark border-secondary text-white" placeholder="m.gomez@parquesafari.cl" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-secondary fw-bold">CARGO ASIGNADO</label>
+                            <select class="form-select bg-dark border-secondary text-white">
+                                <option value="cajero">Cajero</option>
+                                <option value="vendedor">Vendedor / Garzón</option>
+                                <option value="cocina">Cocina (KDS)</option>
+                                <option value="bar">Bar (BDS)</option>
+                                <option value="administrador">Administrador</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small text-secondary fw-bold">CONTRASEÑA TEMPORAL</label>
+                            <input type="password" class="form-control bg-dark border-secondary text-white" value="123456" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-secondary fw-bold">TERMINAL / CAJA PREFERENTE</label>
+                            <input type="text" class="form-control bg-dark border-secondary text-white" value="Caja 01 - Principal">
+                        </div>
+                    </div>
+                    <div class="modal-footer px-0 pb-0 mt-4 border-top border-secondary">
+                        <button type="button" class="btn btn-secondary px-4 fw-bold" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-warning px-4 fw-bold">Guardar Usuario</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

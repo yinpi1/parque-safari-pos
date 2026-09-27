@@ -1,0 +1,144 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceso POS | Parque Safari Chile</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/estilos.css' %}">
+    <style>
+        body {
+            background: radial-gradient(circle at 50% 30%, #1e293b 0%, #0b1120 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 1.5rem;
+        }
+        .login-box {
+            width: 100%;
+            max-width: 460px;
+            background: #131c2e;
+            border: 1px solid #334155;
+            border-radius: 20px;
+            padding: 2.5rem 2.2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+        }
+        .login-logo {
+            width: 72px;
+            height: 72px;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            color: #000;
+            margin: 0 auto 1.25rem;
+            box-shadow: 0 10px 25px rgba(245, 158, 11, 0.4);
+        }
+        .touch-input {
+            background: #1e293b;
+            border: 2px solid #334155;
+            color: #fff;
+            padding: 0.85rem 1.15rem;
+            font-size: 1.05rem;
+            border-radius: 12px;
+        }
+        .touch-input:focus {
+            background: #1e293b;
+            color: #fff;
+            border-color: #f59e0b;
+            box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.2);
+        }
+        .role-chip {
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #cbd5e1;
+            padding: 0.45rem 0.75rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .role-chip:hover {
+            border-color: #f59e0b;
+            color: #f59e0b;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <div class="text-center mb-4">
+            <div class="login-logo">
+                <i class="bi bi-compass-fill"></i>
+            </div>
+            <h2 class="fw-bold mb-1 text-white text-uppercase" style="letter-spacing: 1px;">Parque Safari</h2>
+            <p class="text-warning fw-semibold mb-0" style="font-size: 0.85rem; letter-spacing: 2px;">SISTEMA WEB DE VENTAS POS</p>
+            <div class="badge bg-secondary mt-2 px-3 py-1">Terminal Caja 01 &bull; Versión MVP</div>
+        </div>
+
+        <form method="POST" action="{% url 'login' %}">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label class="form-label text-light fw-bold small">USUARIO DEL SISTEMA</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-person-fill"></i></span>
+                    <input type="text" id="userInput" name="username" class="form-control touch-input" value="jvalenzuela" required placeholder="Ingrese usuario">
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label text-light fw-bold small">CONTRASEÑA / PIN</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-lock-fill"></i></span>
+                    <input type="password" id="passInput" name="password" class="form-control touch-input" value="123456" required placeholder="••••••••">
+                </div>
+            </div>
+
+            <!-- Accesos rápidos demostrativos -->
+            <div class="mb-4">
+                <div class="text-secondary small fw-bold mb-2">ACCESO RÁPIDO DEMO:</div>
+                <div class="d-flex flex-wrap gap-2">
+                    <span class="role-chip" onclick="setDemo('jvalenzuela', 'Cajero')">
+                        <i class="bi bi-person-badge me-1"></i> Cajero (Jean)
+                    </span>
+                    <span class="role-chip" onclick="setDemo('cmendoza', 'Admin')">
+                        <i class="bi bi-shield-check me-1"></i> Admin (Carlos)
+                    </span>
+                    <span class="role-chip" onclick="setDemo('mtorres', 'Cocina')">
+                        <i class="bi bi-fire me-1"></i> Cocina (Matías)
+                    </span>
+                    <span class="role-chip" onclick="setDemo('pgomez', 'Bar')">
+                        <i class="bi bi-cup-straw me-1"></i> Bar (Patricia)
+                    </span>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-warning w-100 py-3 fw-bold fs-5 rounded-3 shadow-lg d-flex align-items-center justify-content-center gap-2">
+                <span>INGRESAR AL SISTEMA</span>
+                <i class="bi bi-arrow-right-circle-fill"></i>
+            </button>
+        </form>
+
+        <div class="text-center mt-4 pt-3 border-top border-secondary">
+            <small class="text-secondary">
+                Parque Safari Chile &bull; Analista Programador<br>
+                Maqueta Visual Demostrativa
+            </small>
+        </div>
+    </div>
+
+    <script>
+        function setDemo(user, role) {
+            document.getElementById('userInput').value = user;
+            document.getElementById('passInput').value = '123456';
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,156 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ titulo|default:"Parque Safari — Sistema POS" }}</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <!-- Custom POS Stylesheet -->
+    <link rel="stylesheet" href="{% static 'css/estilos.css' %}">
+</head>
+<body>
+    <!-- Topbar Header -->
+    <header class="pos-navbar">
+        <a href="{% url 'dashboard' %}" class="pos-brand">
+            <div class="pos-brand-logo">
+                <i class="bi bi-compass-fill"></i>
+            </div>
+            <div class="pos-brand-text">
+                <h1>Parque Safari</h1>
+                <span>SISTEMA WEB DE VENTAS POS</span>
+            </div>
+        </a>
+
+        <div class="pos-header-info">
+            <!-- Terminal Status -->
+            <div class="pos-status-badge">
+                <span class="pos-status-dot"></span>
+                <span>TERMINAL EN LÍNEA</span>
+            </div>
+
+            <!-- Live Clock -->
+            <div class="pos-clock" id="liveClock">00:00:00</div>
+
+            <!-- Active User -->
+            <div class="pos-user-badge">
+                <div class="pos-user-avatar">
+                    {{ usuario_actual.nombre|slice:":2"|upper }}
+                </div>
+                <div class="d-none d-md-block text-start">
+                    <div class="fw-bold" style="font-size: 0.85rem; line-height: 1.1;">{{ usuario_actual.nombre }}</div>
+                    <small class="text-warning" style="font-size: 0.72rem;">{{ usuario_actual.cargo }} &bull; Caja 01</small>
+                </div>
+            </div>
+
+            <!-- Logout / Lock -->
+            <a href="{% url 'login' %}" class="btn btn-outline-danger btn-sm px-3 py-1 fw-bold" title="Cerrar Turno / Salir">
+                <i class="bi bi-box-arrow-right me-1"></i> Salir
+            </a>
+        </div>
+    </header>
+
+    <!-- App Layout (Sidebar + Main Content) -->
+    <div class="pos-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="pos-sidebar">
+            <div>
+                <div class="pos-nav-group-title">Operación de Ventas</div>
+                <a href="{% url 'pos' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'pos' %}active{% endif %}">
+                    <i class="bi bi-calculator"></i>
+                    <span>Punto de Venta</span>
+                    <span class="badge bg-danger pos-nav-badge">POS</span>
+                </a>
+                <a href="{% url 'dashboard' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                    <i class="bi bi-speedometer2"></i>
+                    <span>Panel Principal</span>
+                </a>
+                <a href="{% url 'mesas' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'mesas' %}active{% endif %}">
+                    <i class="bi bi-layout-text-window-reverse"></i>
+                    <span>Mapa de Mesas</span>
+                    <span class="badge bg-secondary pos-nav-badge">12</span>
+                </a>
+                <a href="{% url 'ticket' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'ticket' %}active{% endif %}">
+                    <i class="bi bi-receipt-cutoff"></i>
+                    <span>Ticket y Comandas</span>
+                </a>
+
+                <div class="pos-nav-group-title mt-3">Producción y Cocina</div>
+                <a href="{% url 'distribucion' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'distribucion' %}active{% endif %}">
+                    <i class="bi bi-diagram-3"></i>
+                    <span>Distribución</span>
+                </a>
+                <a href="{% url 'cocina' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'cocina' %}active{% endif %}">
+                    <i class="bi bi-fire"></i>
+                    <span>Cocina (KDS)</span>
+                    <span class="badge bg-warning text-dark pos-nav-badge">3</span>
+                </a>
+                <a href="{% url 'bar' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'bar' %}active{% endif %}">
+                    <i class="bi bi-cup-straw"></i>
+                    <span>Bar (BDS)</span>
+                    <span class="badge bg-info text-dark pos-nav-badge">2</span>
+                </a>
+
+                <div class="pos-nav-group-title mt-3">Catálogo y Administración</div>
+                <a href="{% url 'productos' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'productos' %}active{% endif %}">
+                    <i class="bi bi-boxes"></i>
+                    <span>Productos</span>
+                </a>
+                <a href="{% url 'menus' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'menus' %}active{% endif %}">
+                    <i class="bi bi-stars"></i>
+                    <span>Menús & Combos</span>
+                </a>
+                <a href="{% url 'fiados' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'fiados' %}active{% endif %}">
+                    <i class="bi bi-journal-bookmark-fill"></i>
+                    <span>Fiados Personal</span>
+                </a>
+                <a href="{% url 'usuarios' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'usuarios' %}active{% endif %}">
+                    <i class="bi bi-people-fill"></i>
+                    <span>Usuarios y Cargos</span>
+                </a>
+
+                <div class="pos-nav-group-title mt-3">Reportes y Ajustes</div>
+                <a href="{% url 'estadisticas' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'estadisticas' %}active{% endif %}">
+                    <i class="bi bi-graph-up-arrow"></i>
+                    <span>Estadísticas</span>
+                </a>
+                <a href="{% url 'reportes' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'reportes' %}active{% endif %}">
+                    <i class="bi bi-file-earmark-bar-graph"></i>
+                    <span>Reportes</span>
+                </a>
+                <a href="{% url 'configuracion' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'configuracion' %}active{% endif %}">
+                    <i class="bi bi-gear-fill"></i>
+                    <span>Configuración</span>
+                </a>
+            </div>
+
+            <!-- Footer Badge -->
+            <div class="pt-3 border-top border-secondary text-center">
+                <small class="text-secondary" style="font-size: 0.72rem;">
+                    Parque Safari POS &bull; v1.0 MVP<br>
+                    Optimizado Full HD (1920x1080)
+                </small>
+            </div>
+        </aside>
+
+        <!-- Main Workspace Area -->
+        <main class="pos-main-content">
+            {% block content %}
+            {% endblock %}
+        </main>
+    </div>
+
+    <!-- Bootstrap Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- POS Engine JS -->
+    <script src="{% static 'js/pos.js' %}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

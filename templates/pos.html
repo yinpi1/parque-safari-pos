@@ -1,0 +1,396 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="pos-workspace">
+    <!-- ÁREA IZQUIERDA: CATÁLOGO TÁCTIL DE PRODUCTOS -->
+    <div class="pos-catalog-area">
+        <!-- Barra de Categorías (Pills Táctiles) -->
+        <div class="pos-category-bar">
+            {% for cat in categorias %}
+            <button class="pos-cat-btn {% if forloop.first %}active{% endif %}" data-cat="{{ cat.id }}">
+                <i class="bi {{ cat.icono }}"></i>
+                <span>{{ cat.nombre }}</span>
+            </button>
+            {% endfor %}
+        </div>
+
+        <!-- Barra de Búsqueda Rápida y Acciones -->
+        <div class="d-flex gap-2">
+            <div class="pos-search-wrapper flex-grow-1">
+                <i class="bi bi-search pos-search-icon"></i>
+                <input type="text" id="posSearchInput" class="pos-search-input" placeholder="Buscar por nombre de producto (ej: Hamburguesa, Cerveza, Jugo)...">
+            </div>
+            <button class="btn btn-outline-warning d-flex align-items-center gap-2 px-3 fw-bold" onclick="document.getElementById('posSearchInput').value=''; filterProductsByQuery('');">
+                <i class="bi bi-x-circle"></i>
+                <span class="d-none d-md-inline">Limpiar filtro</span>
+            </button>
+        </div>
+
+        <!-- Grid de Tarjetas Táctiles de Productos -->
+        <div class="pos-product-grid" id="posProductGrid">
+            {% for p in productos %}
+            <div class="pos-product-card" 
+                 data-id="{{ p.id }}" 
+                 data-nombre="{{ p.nombre }}" 
+                 data-precio="{{ p.precio }}" 
+                 data-cat="{{ p.categoria_id }}" 
+                 data-destino="{{ p.destino }}" 
+                 data-tipo="{{ p.tipo }}">
+                
+                <!-- Badge de Destino/Tipo -->
+                <span class="pos-product-badge {{ p.badge_tipo }}">
+                    {% if p.destino == 'Cocina' %}
+                        <i class="bi bi-fire me-1"></i> Cocina
+                    {% elif p.destino == 'Bar' %}
+                        <i class="bi bi-cup-straw me-1"></i> Bar
+                    {% else %}
+                        <i class="bi bi-box2-heart me-1"></i> Listo
+                    {% endif %}
+                </span>
+
+                <!-- Icono representativo -->
+                <div class="pos-product-icon-wrap">
+                    <i class="bi {{ p.icono }}"></i>
+                </div>
+
+                <!-- Título y Descripción -->
+                <div>
+                    <h5 class="pos-product-title">{{ p.nombre }}</h5>
+                    <p class="pos-product-desc">{{ p.descripcion }}</p>
+                </div>
+
+                <!-- Pie con Precio y Botón Agregar -->
+                <div class="pos-product-footer">
+                    <span class="pos-product-price">{{ p.precio_formateado }}</span>
+                    <button class="pos-product-add-btn" title="Agregar al pedido">
+                        <i class="bi bi-plus-lg"></i>
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- ÁREA DERECHA: CARRITO INTERACTIVO POS -->
+    <div class="pos-cart-panel">
+        <!-- Cabecera del Carrito -->
+        <div class="pos-cart-header">
+            <h5 class="pos-cart-title text-white">
+                <i class="bi bi-cart3 text-warning"></i>
+                <span>Comanda Actual</span>
+                <span class="badge bg-warning text-dark rounded-pill" id="cartItemsCount">0</span>
+            </h5>
+            <small class="text-secondary font-monospace">CAJA-01</small>
+        </div>
+
+        <!-- Selector BAR / MESA -->
+        <div class="pos-modalidad-selector">
+            <button class="pos-modalidad-btn active" id="btnModBar">
+                <i class="bi bi-cup-hot-fill"></i>
+                <span>BAR / RETIRO</span>
+            </button>
+            <button class="pos-modalidad-btn" id="btnModMesa">
+                <i class="bi bi-table"></i>
+                <span>MESA</span>
+            </button>
+        </div>
+
+        <!-- Indicador de Mesa Seleccionada -->
+        <div class="pos-mesa-tag" id="mesaSelectorWrapper" style="display: none;">
+            <div>
+                <i class="bi bi-geo-alt-fill me-1"></i> 
+                <span>Mesa: </span>
+                <strong id="selectedMesaLabel" class="text-white">Sin seleccionar</strong>
+            </div>
+            <button class="btn btn-primary btn-sm py-0 px-2 fw-bold" data-bs-toggle="modal" data-bs-target="#modalSeleccionMesa">
+                Cambiar
+            </button>
+        </div>
+
+        <!-- Lista de Items en Carrito -->
+        <div class="pos-cart-items-wrapper" id="posCartItems">
+            <!-- Renderizado dinámico vía JS -->
+        </div>
+
+        <!-- Comentarios Especiales del Pedido -->
+        <div class="pos-order-notes">
+            <label for="orderNotes">
+                <i class="bi bi-chat-left-text-fill text-warning"></i>
+                <span>NOTAS / COMENTARIOS (Cocina & Bar):</span>
+            </label>
+            <textarea id="orderNotes" class="pos-notes-textarea" placeholder="Ej: Sin hielo en el jugo; papas bien doradas; etc."></textarea>
+        </div>
+
+        <!-- Resumen Financiero y Botones de Cobro -->
+        <div class="pos-cart-summary">
+            <div class="pos-summary-row">
+                <span>Subtotal Neto:</span>
+                <span id="cartSubtotal" class="font-monospace">$0</span>
+            </div>
+            <div class="pos-summary-row">
+                <span>IVA (19% Incluido):</span>
+                <span class="text-secondary font-monospace">Incluido</span>
+            </div>
+            <div class="pos-summary-row total-row">
+                <span>TOTAL A PAGAR:</span>
+                <span id="cartTotal" class="pos-total-amount">$0</span>
+            </div>
+
+            <div class="pos-cart-actions">
+                <button class="pos-btn-clear" id="btnClearCart" title="Vaciar pedido">
+                    <i class="bi bi-trash"></i>
+                    <span>Borrar</span>
+                </button>
+                <button class="pos-btn-checkout" id="btnCheckout">
+                    <span>COBRAR</span>
+                    <i class="bi bi-arrow-right-circle-fill"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================================================
+     MODAL 1: SELECCIÓN DE MESA (Disponible / Ocupada / Seleccionada)
+     ========================================================================== -->
+<div class="modal fade" id="modalSeleccionMesa" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                    <i class="bi bi-table text-warning"></i>
+                    <span>Seleccionar Mesa para el Pedido</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="text-secondary mb-3">
+                    Haga click en una mesa disponible para asociarla a la venta actual:
+                </p>
+                <div class="row g-3">
+                    {% for m in mesas %}
+                    <div class="col-4 col-md-3">
+                        <button type="button" 
+                                class="btn w-100 p-3 rounded-3 mesa-option-btn {% if m.estado == 'Ocupada' %}btn-outline-danger border-2{% else %}btn-outline-success border-2{% endif %}"
+                                data-mesa-num="{{ m.numero }}"
+                                {% if m.estado == 'Ocupada' %}title="Mesa ocupada ({{ m.tiempo_transcurrido }})"{% endif %}>
+                            <div class="fw-bold fs-5">{{ m.numero }}</div>
+                            <small class="d-block {% if m.estado == 'Ocupada' %}text-danger fw-bold{% else %}text-success{% endif %}">
+                                {{ m.estado }}
+                            </small>
+                            <small class="text-secondary font-monospace" style="font-size: 0.7rem;">
+                                Cap: {{ m.capacidad }} pers.
+                            </small>
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary px-4 fw-bold" data-bs-dismiss="modal">Cancelar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================================================
+     MODAL 2: CONFIRMACIÓN DE VENTA
+     ========================================================================== -->
+<div class="modal fade" id="modalConfirmarVenta" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-md modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-dark">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                    <i class="bi bi-check2-circle text-success"></i>
+                    <span>Confirmación de Venta</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- Modalidad y Destino -->
+                <div class="alert alert-secondary py-2 px-3 mb-3 d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-secondary small d-block">MODALIDAD DE ATENCIÓN:</span>
+                        <strong class="text-warning fs-6" id="confirmModalidad">BAR / RETIRO</strong>
+                    </div>
+                    <span class="badge bg-warning text-dark px-3 py-2 fw-bold">POS ACTIVO</span>
+                </div>
+
+                <!-- Detalle de Productos -->
+                <div class="text-secondary small fw-bold mb-2">PRODUCTOS SELECCIONADOS:</div>
+                <div id="confirmItemsList" class="mb-3 max-h-200 overflow-y-auto pe-1" style="max-height: 180px;">
+                    <!-- Rellenado dinámico por JS -->
+                </div>
+
+                <!-- Comentarios del Pedido -->
+                <div class="mb-3 p-2 bg-dark rounded border border-secondary">
+                    <div class="text-secondary small fw-bold">COMENTARIOS ASOCIADOS:</div>
+                    <div class="text-white small fst-italic" id="confirmNotes">Sin comentarios</div>
+                </div>
+
+                <!-- Método de Pago Visual -->
+                <div class="mb-3">
+                    <div class="text-secondary small fw-bold mb-2">MÉTODO DE PAGO:</div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <input type="radio" class="btn-check" name="medioPago" id="pagoEfectivo" checked>
+                            <label class="btn btn-outline-light w-100 py-2 fw-bold small text-start" for="pagoEfectivo">
+                                <i class="bi bi-cash-stack text-success me-1"></i> Efectivo
+                            </label>
+                        </div>
+                        <div class="col-6">
+                            <input type="radio" class="btn-check" name="medioPago" id="pagoDebito">
+                            <label class="btn btn-outline-light w-100 py-2 fw-bold small text-start" for="pagoDebito">
+                                <i class="bi bi-credit-card-2-front text-info me-1"></i> Tarjeta Débito
+                            </label>
+                        </div>
+                        <div class="col-6">
+                            <input type="radio" class="btn-check" name="medioPago" id="pagoCredito">
+                            <label class="btn btn-outline-light w-100 py-2 fw-bold small text-start" for="pagoCredito">
+                                <i class="bi bi-credit-card text-warning me-1"></i> Tarjeta Crédito
+                            </label>
+                        </div>
+                        <div class="col-6">
+                            <input type="radio" class="btn-check" name="medioPago" id="pagoFiado">
+                            <label class="btn btn-outline-light w-100 py-2 fw-bold small text-start" for="pagoFiado">
+                                <i class="bi bi-journal-bookmark text-primary me-1"></i> Fiado Colaborador
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Total -->
+                <div class="d-flex justify-content-between align-items-center p-3 rounded-3 bg-dark border border-success mt-2">
+                    <span class="fw-bold fs-5 text-white">TOTAL A COBRAR:</span>
+                    <span class="fw-bold fs-3 text-success font-monospace" id="confirmTotal">$0</span>
+                </div>
+            </div>
+            <div class="modal-footer bg-dark">
+                <button type="button" class="btn btn-outline-secondary px-4 fw-bold" data-bs-dismiss="modal">Volver</button>
+                <button type="button" class="btn btn-success px-4 py-2 fw-bold fs-6 d-flex align-items-center gap-2" id="btnFinalizarVenta">
+                    <i class="bi bi-check2-all fs-5"></i>
+                    <span>CONFIRMAR VENTA</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================================================
+     MODAL 3: TICKET DE VENTA Y COMANDAS GENERADAS (Demostración visual)
+     ========================================================================== -->
+<div class="modal fade" id="modalTicketEmision" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-dark">
+                <div>
+                    <h5 class="modal-title fw-bold text-success d-flex align-items-center gap-2">
+                        <i class="bi bi-check-circle-fill"></i>
+                        <span>¡Venta Confirmada Exitosamente!</span>
+                    </h5>
+                    <small class="text-secondary">Documentos generados y enviados a sus respectivas impresoras de red</small>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4 bg-dark bg-opacity-50">
+                <div class="pos-ticket-container">
+                    
+                    <!-- 1. TICKET DE VENTA (CLIENTE) -->
+                    <div class="thermal-slip">
+                        <div class="thermal-header">
+                            <h2>PARQUE SAFARI CHILE</h2>
+                            <div>RUT: {{ config.rut }}</div>
+                            <div>{{ config.direccion }}</div>
+                            <span class="thermal-slip-type">BOLETA ELECTRÓNICA DE VENTA</span>
+                        </div>
+                        <div class="thermal-meta">
+                            <div class="d-flex justify-content-between">
+                                <span id="ticketFolio">FOLIO: #8492</span>
+                                <span id="ticketDateTime">26/09/2026 12:55</span>
+                            </div>
+                            <div>CAJERO: {{ usuario_actual.nombre }}</div>
+                            <div>ATENCIÓN: <strong id="ticketMod">BAR</strong></div>
+                        </div>
+                        <div class="thermal-items" id="ticketItemsContainer">
+                            <!-- Items inyectados -->
+                        </div>
+                        <div class="thermal-total">
+                            <span>TOTAL:</span>
+                            <span id="ticketTotal">$0</span>
+                        </div>
+                        <div class="text-center small">
+                            <div>IVA Incluido (19%)</div>
+                            <div class="mt-2 text-muted">¡Gracias por visitar Parque Safari!</div>
+                            <div>www.parquesafari.cl</div>
+                        </div>
+                        <div class="thermal-barcode">
+                            <div class="thermal-barcode-bars">||| | |||| | |||||| || |</div>
+                            <small class="font-monospace">SAF-2026-POS-OK</small>
+                        </div>
+                    </div>
+
+                    <!-- 2. COMANDA DE COCINA -->
+                    <div class="thermal-slip" id="comandaCocinaSlip">
+                        <div class="thermal-header" style="background: #fef08a; padding: 0.5rem; margin: -1.5rem -1.25rem 0.75rem;">
+                            <h2 style="color: #000; margin: 0;">COMANDA COCINA</h2>
+                            <span class="badge bg-danger text-white fs-6 mt-1">ÁREA CALIENTE</span>
+                        </div>
+                        <div class="thermal-meta">
+                            <div class="d-flex justify-content-between fw-bold fs-6">
+                                <span>PEDIDO: <span id="cocinaFolio">#8492</span></span>
+                                <span class="badge bg-dark text-white px-2 py-1" id="cocinaDestino">MESA 03</span>
+                            </div>
+                            <div>HORA: <span class="font-monospace">12:55</span> &bull; CAJA 01</div>
+                        </div>
+                        <div class="thermal-items" id="cocinaItems">
+                            <!-- Items de cocina -->
+                        </div>
+                        <div class="p-2 bg-light border border-dark rounded fw-bold text-danger" id="cocinaNotas">
+                            NOTA: Sin mayonesa
+                        </div>
+                        <div class="text-center small mt-3 text-muted">
+                            [IMPRESA EN: {{ config.impresora_cocina }}]
+                        </div>
+                    </div>
+
+                    <!-- 3. COMANDA DE BAR -->
+                    <div class="thermal-slip" id="comandaBarSlip">
+                        <div class="thermal-header" style="background: #bfdbfe; padding: 0.5rem; margin: -1.5rem -1.25rem 0.75rem;">
+                            <h2 style="color: #000; margin: 0;">COMANDA BAR</h2>
+                            <span class="badge bg-primary text-white fs-6 mt-1">LÍQUIDOS & POSTRES</span>
+                        </div>
+                        <div class="thermal-meta">
+                            <div class="d-flex justify-content-between fw-bold fs-6">
+                                <span>PEDIDO: <span id="barFolio">#8492</span></span>
+                                <span class="badge bg-dark text-white px-2 py-1" id="barDestino">BAR</span>
+                            </div>
+                            <div>HORA: <span class="font-monospace">12:55</span> &bull; CAJA 01</div>
+                        </div>
+                        <div class="thermal-items" id="barItems">
+                            <!-- Items de bar -->
+                        </div>
+                        <div class="p-2 bg-light border border-dark rounded fw-bold text-primary" id="barNotas">
+                            NOTA: Jugo con poco hielo
+                        </div>
+                        <div class="text-center small mt-3 text-muted">
+                            [IMPRESA EN: {{ config.impresora_bar }}]
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            <div class="modal-footer bg-dark d-flex justify-content-between">
+                <button type="button" class="btn btn-outline-info fw-bold" onclick="window.print()">
+                    <i class="bi bi-printer-fill me-1"></i> Imprimir Demo
+                </button>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'dashboard' %}" class="btn btn-secondary fw-bold px-3">Ir al Dashboard</a>
+                    <button type="button" class="btn btn-warning fw-bold px-4" data-bs-dismiss="modal">
+                        <i class="bi bi-plus-circle-fill me-1"></i> Nueva Venta
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

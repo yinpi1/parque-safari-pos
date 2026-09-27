@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <!-- Header KDS -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
+        <div>
+            <div class="d-flex align-items-center gap-3">
+                <div class="p-2 rounded bg-danger text-white fs-3">
+                    <i class="bi bi-fire"></i>
+                </div>
+                <div>
+                    <h2 class="fw-bold mb-0 text-white">Cocina KDS (Kitchen Display System)</h2>
+                    <p class="text-secondary mb-0">Pantalla táctil de comandas calientes &bull; Parque Safari</p>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex gap-3 align-items-center">
+            <div class="d-flex gap-2">
+                <span class="badge bg-danger p-2 fs-6">Pendientes: {{ total_pendientes }}</span>
+                <span class="badge bg-warning text-dark p-2 fs-6">En Preparación: {{ total_en_prep }}</span>
+                <span class="badge bg-success p-2 fs-6">Preparados: {{ total_preparados }}</span>
+            </div>
+            <button class="btn btn-outline-warning fw-bold" onclick="location.reload()">
+                <i class="bi bi-arrow-clockwise"></i> Refrescar
+            </button>
+        </div>
+    </div>
+
+    <!-- Grid de Tarjetas KDS -->
+    <div class="pos-kds-grid">
+        {% for ped in pedidos %}
+        <div class="pos-kds-card {% if ped.urgencia == 'urgente' %}urgente{% elif ped.urgencia == 'advertencia' %}advertencia{% endif %}">
+            
+            <!-- Cabecera de la Comanda -->
+            <div class="pos-kds-header">
+                <div>
+                    <span class="fw-bold text-white fs-5 font-monospace">PEDIDO {{ ped.id }}</span>
+                    <span class="badge bg-secondary font-monospace ms-2">Venta #{{ ped.venta_num }}</span>
+                </div>
+                <div class="text-end">
+                    <span class="badge {{ ped.estado_badge }} pos-kds-badge">{{ ped.estado }}</span>
+                </div>
+            </div>
+
+            <!-- Datos de Ubicación y Tiempos -->
+            <div class="px-3 py-2 bg-dark d-flex justify-content-between align-items-center border-bottom border-secondary">
+                <div class="fw-bold text-warning fs-6">
+                    <i class="bi bi-geo-alt-fill me-1"></i> {{ ped.ubicacion }}
+                </div>
+                <div class="text-secondary small font-monospace">
+                    <i class="bi bi-clock me-1"></i> {{ ped.hora }} (Hace {{ ped.minutos_espera }} min)
+                </div>
+            </div>
+
+            <!-- Cuerpo con Productos a Cocinar -->
+            <div class="pos-kds-body">
+                <div class="text-secondary small fw-bold mb-2">ÍTEMS A PREPARAR:</div>
+                {% for prod in ped.productos %}
+                <div class="pos-kds-item">
+                    <div class="pos-kds-item-qty">{{ prod.cant }}</div>
+                    <div>
+                        <div class="fw-bold text-white fs-6">{{ prod.nombre }}</div>
+                        {% if prod.nota %}
+                        <div class="pos-kds-item-note">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ prod.nota }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+
+                <!-- Comentarios del Cliente / Garzón -->
+                {% if ped.comentarios %}
+                <div class="pos-kds-notes-box">
+                    <i class="bi bi-chat-quote-fill me-1"></i>
+                    <strong>COMENTARIO GARZÓN:</strong> {{ ped.comentarios }}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Pie con Acciones KDS Táctiles -->
+            <div class="pos-kds-footer">
+                {% if ped.estado == 'Pendiente' %}
+                    <button class="btn btn-warning fw-bold w-100 kds-action-btn" data-action="preparar" style="grid-column: span 2;">
+                        <i class="bi bi-play-circle-fill me-1"></i> Iniciar Preparación
+                    </button>
+                {% elif ped.estado == 'En preparación' %}
+                    <button class="btn btn-success fw-bold w-100 kds-action-btn" data-action="completar" style="grid-column: span 2;">
+                        <i class="bi bi-check2-circle me-1"></i> Marcar como Preparado
+                    </button>
+                {% else %}
+                    <button class="btn btn-secondary disabled w-100" style="grid-column: span 2;">
+                        <i class="bi bi-check-all me-1"></i> Preparado (En pasaplatos)
+                    </button>
+                {% endif %}
+            </div>
+
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

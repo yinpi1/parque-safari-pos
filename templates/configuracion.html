@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
+        <div>
+            <h2 class="fw-bold mb-1 text-white">Configuración del Sistema POS</h2>
+            <p class="text-secondary mb-0">Parámetros de la empresa, dispositivos de impresión térmica de 80mm y terminales.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-warning fw-bold d-flex align-items-center gap-2 shadow" onclick="alert('Configuración guardada en memoria local.')">
+                <i class="bi bi-save-fill"></i>
+                <span>GUARDAR CAMBIOS</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Tarjeta 1: Datos de la Empresa / Parque -->
+        <div class="col-xl-6">
+            <div class="card bg-dark border-secondary p-4 rounded-4 h-100">
+                <h5 class="fw-bold text-white mb-3">
+                    <i class="bi bi-building text-warning me-2"></i>Datos del Emisor y Parque
+                </h5>
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label small text-secondary fw-bold">NOMBRE DE FANTASÍA</label>
+                        <input type="text" class="form-control bg-dark border-secondary text-white" value="{{ config.nombre_parque }}">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small text-secondary fw-bold">RAZÓN SOCIAL</label>
+                        <input type="text" class="form-control bg-dark border-secondary text-white" value="{{ config.razon_social }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small text-secondary fw-bold">RUT EMPRESA</label>
+                        <input type="text" class="form-control bg-dark border-secondary text-white font-monospace" value="{{ config.rut }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small text-secondary fw-bold">TELÉFONO DE CONTACTO</label>
+                        <input type="text" class="form-control bg-dark border-secondary text-white" value="{{ config.telefono }}">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small text-secondary fw-bold">DIRECCIÓN FÍSICA</label>
+                        <input type="text" class="form-control bg-dark border-secondary text-white" value="{{ config.direccion }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tarjeta 2: Impresoras Térmicas de Red y Periféricos -->
+        <div class="col-xl-6">
+            <div class="card bg-dark border-secondary p-4 rounded-4 h-100">
+                <h5 class="fw-bold text-white mb-3">
+                    <i class="bi bi-printer text-info me-2"></i>Impresoras Térmicas y Periféricos
+                </h5>
+                <div class="d-flex flex-column gap-3">
+                    <div class="p-3 bg-dark rounded-3 border border-secondary">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold text-white">Ticketera de Boletas (Caja Principal)</span>
+                            <span class="badge bg-success">Conectada</span>
+                        </div>
+                        <input type="text" class="form-control form-control-sm bg-dark border-secondary text-secondary" value="{{ config.impresora_tickets }}">
+                    </div>
+
+                    <div class="p-3 bg-dark rounded-3 border border-secondary">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold text-warning">Impresora Cocina (KDS Comandas)</span>
+                            <span class="badge bg-success">IP 192.168.1.50</span>
+                        </div>
+                        <input type="text" class="form-control form-control-sm bg-dark border-secondary text-secondary" value="{{ config.impresora_cocina }}">
+                    </div>
+
+                    <div class="p-3 bg-dark rounded-3 border border-secondary">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold text-info">Impresora Bar (Líquidos Comandas)</span>
+                            <span class="badge bg-success">IP 192.168.1.51</span>
+                        </div>
+                        <input type="text" class="form-control form-control-sm bg-dark border-secondary text-secondary" value="{{ config.impresora_bar }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tarjeta 3: Parámetros del POS y Pantalla -->
+        <div class="col-12">
+            <div class="card bg-dark border-secondary p-4 rounded-4">
+                <h5 class="fw-bold text-white mb-3">
+                    <i class="bi bi-sliders text-success me-2"></i>Preferencias de Interfaz Táctil y Facturación
+                </h5>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="ivaCheck" checked>
+                            <label class="form-check-label text-white" for="ivaCheck">Precios mostrados con IVA incluido (19%)</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="audioCheck" checked>
+                            <label class="form-check-label text-white" for="audioCheck">Alerta acústica al recibir nueva comanda</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="resCheck" checked>
+                            <label class="form-check-label text-white" for="resCheck">Modo optimizado Full HD (1920x1080)</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

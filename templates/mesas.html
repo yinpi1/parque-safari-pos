@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <!-- Header -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
+        <div>
+            <h2 class="fw-bold mb-1 text-white">Mapa de Mesas y Salón</h2>
+            <p class="text-secondary mb-0">Gestión de ocupación, tiempos de servicio y reasignación de comensales.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-info fw-bold d-flex align-items-center gap-2" onclick="location.reload()">
+                <i class="bi bi-arrow-clockwise"></i>
+                <span>Refrescar Salón</span>
+            </button>
+            <a href="{% url 'pos' %}" class="btn btn-warning fw-bold d-flex align-items-center gap-2">
+                <i class="bi bi-cart-plus-fill"></i>
+                <span>Tomar Pedido POS</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Indicadores de Salón -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="p-3 bg-dark rounded-3 border border-secondary d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-secondary small fw-bold">TOTAL MESAS</span>
+                    <h3 class="fw-bold text-white mb-0">{{ total_mesas }}</h3>
+                </div>
+                <i class="bi bi-table fs-1 text-primary"></i>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="p-3 bg-dark rounded-3 border border-danger border-opacity-50 d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-danger small fw-bold">MESAS OCUPADAS</span>
+                    <h3 class="fw-bold text-danger mb-0">{{ mesas_ocupadas }}</h3>
+                </div>
+                <i class="bi bi-person-fill-lock fs-1 text-danger"></i>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="p-3 bg-dark rounded-3 border border-success border-opacity-50 d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-success small fw-bold">MESAS DISPONIBLES</span>
+                    <h3 class="fw-bold text-success mb-0">{{ mesas_disponibles }}</h3>
+                </div>
+                <i class="bi bi-check-circle-fill fs-1 text-success"></i>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="p-3 bg-dark rounded-3 border border-secondary d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-secondary small fw-bold">COMENSALES EN SALÓN</span>
+                    <h3 class="fw-bold text-warning mb-0">{{ total_comensales }} pers.</h3>
+                </div>
+                <i class="bi bi-people-fill fs-1 text-warning"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mapa / Grid de Tarjetas de Mesas -->
+    <div class="pos-table-grid">
+        {% for m in mesas %}
+        <div class="pos-table-card {% if m.estado == 'Ocupada' %}ocupada{% else %}disponible{% endif %}"
+             data-bs-toggle="modal" 
+             data-bs-target="#modalDetalleMesa"
+             onclick="loadMesaModal('{{ m.numero }}', '{{ m.estado }}', '{{ m.zona }}', '{{ m.capacidad }}', '{{ m.inicio }}', '{{ m.tiempo_transcurrido }}', '{{ m.consumo_actual }}', '{{ m.mozo }}', '{{ m.comensales }}')">
+            
+            <div class="pos-table-header">
+                <span class="pos-table-num text-white">{{ m.numero }}</span>
+                <span class="pos-table-badge {% if m.estado == 'Ocupada' %}badge-ocupada{% else %}badge-disponible{% endif %}">
+                    {{ m.estado }}
+                </span>
+            </div>
+
+            <div class="text-secondary small mb-2">
+                <i class="bi bi-geo-alt-fill text-warning me-1"></i> {{ m.zona }}
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center my-2 p-2 bg-dark rounded-2 border border-secondary">
+                <div class="small">
+                    <span class="text-secondary d-block" style="font-size: 0.72rem;">CAPACIDAD</span>
+                    <span class="text-light fw-bold">{{ m.capacidad }} Personas</span>
+                </div>
+                <div class="small text-end">
+                    <span class="text-secondary d-block" style="font-size: 0.72rem;">HORA INICIO</span>
+                    <span class="text-light font-monospace">{{ m.inicio }}</span>
+                </div>
+            </div>
+
+            {% if m.estado == 'Ocupada' %}
+            <div class="mt-2 pt-2 border-top border-secondary d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="badge bg-danger bg-opacity-25 text-danger font-monospace">
+                        <i class="bi bi-clock me-1"></i> {{ m.tiempo_transcurrido }}
+                    </span>
+                </div>
+                <div class="text-end">
+                    <span class="fw-bold font-monospace text-warning fs-6">{{ m.consumo_actual }}</span>
+                </div>
+            </div>
+            {% else %}
+            <div class="mt-2 pt-2 border-top border-secondary text-center text-success small fw-bold">
+                <i class="bi bi-check-lg me-1"></i> Lista para atender
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- ==========================================================================
+     MODAL DE DETALLE Y REASIGNACIÓN DE MESA
+     ========================================================================== -->
+<div class="modal fade" id="modalDetalleMesa" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-md modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                    <i class="bi bi-table text-warning"></i>
+                    <span id="modalMesaTitle">Detalle de Mesa</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="d-flex justify-content-between align-items-center p-3 rounded-3 bg-dark border border-secondary mb-3">
+                    <div>
+                        <div class="text-secondary small fw-bold">ESTADO ACTUAL:</div>
+                        <span class="fs-5 fw-bold" id="modalMesaEstado">Ocupada</span>
+                    </div>
+                    <div class="text-end">
+                        <div class="text-secondary small fw-bold">CONSUMO ACUMULADO:</div>
+                        <span class="fs-4 fw-bold font-monospace text-warning" id="modalMesaConsumo">$0</span>
+                    </div>
+                </div>
+
+                <div class="row g-2 mb-3 small">
+                    <div class="col-6">
+                        <div class="p-2 bg-dark rounded border border-secondary">
+                            <span class="text-secondary d-block">ZONA:</span>
+                            <strong class="text-light" id="modalMesaZona">-</strong>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 bg-dark rounded border border-secondary">
+                            <span class="text-secondary d-block">GARZÓN / VENDEDOR:</span>
+                            <strong class="text-light" id="modalMesaMozo">-</strong>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 bg-dark rounded border border-secondary">
+                            <span class="text-secondary d-block">HORA APERTURA:</span>
+                            <strong class="text-light" id="modalMesaInicio">-</strong>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 bg-dark rounded border border-secondary">
+                            <span class="text-secondary d-block">TIEMPO TRANSCURRIDO:</span>
+                            <strong class="text-danger" id="modalMesaTiempo">-</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Formulario simulado de Reasignación de Mesa -->
+                <div class="p-3 bg-dark rounded-3 border border-secondary mb-3">
+                    <label class="form-label small text-warning fw-bold d-flex align-items-center gap-1">
+                        <i class="bi bi-arrow-left-right"></i>
+                        <span>REASIGNAR A OTRA MESA (Simulado):</span>
+                    </label>
+                    <div class="input-group">
+                        <select class="form-select bg-dark border-secondary text-white" id="selectReasignar">
+                            <option value="">Seleccione mesa de destino...</option>
+                            <option value="Mesa 02">Mesa 02 (Disponible - 2 pers)</option>
+                            <option value="Mesa 04">Mesa 04 (Disponible - 6 pers)</option>
+                            <option value="Mesa 05">Mesa 05 (Disponible - 4 pers)</option>
+                            <option value="Mesa 07">Mesa 07 (Disponible - 4 pers)</option>
+                            <option value="Mesa 08">Mesa 08 (Disponible - 2 pers)</option>
+                        </select>
+                        <button type="button" class="btn btn-warning fw-bold" onclick="alert('Mesa reasignada simuladamente con éxito a la nueva ubicación.'); bootstrap.Modal.getInstance(document.getElementById('modalDetalleMesa')).hide();">
+                            Reasignar
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer d-flex justify-content-between">
+                <button type="button" class="btn btn-outline-danger fw-bold" onclick="alert('Mesa liberada simuladamente.'); bootstrap.Modal.getInstance(document.getElementById('modalDetalleMesa')).hide();">
+                    <i class="bi bi-door-open-fill me-1"></i> Liberar Mesa
+                </button>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-secondary fw-bold" data-bs-dismiss="modal">Cerrar</button>
+                    <a href="{% url 'pos' %}" class="btn btn-success fw-bold">
+                        <i class="bi bi-plus-lg me-1"></i> Agregar Ítems
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function loadMesaModal(num, estado, zona, cap, inicio, tiempo, consumo, mozo, comensales) {
+        document.getElementById('modalMesaTitle').textContent = `Mesa: ${num} (${zona})`;
+        document.getElementById('modalMesaEstado').textContent = estado;
+        document.getElementById('modalMesaEstado').className = estado === 'Ocupada' ? 'fs-5 fw-bold text-danger' : 'fs-5 fw-bold text-success';
+        document.getElementById('modalMesaConsumo').textContent = consumo;
+        document.getElementById('modalMesaZona').textContent = zona;
+        document.getElementById('modalMesaMozo').textContent = mozo;
+        document.getElementById('modalMesaInicio').textContent = inicio;
+        document.getElementById('modalMesaTiempo').textContent = tiempo;
+    }
+</script>
+{% endblock %}
