@@ -1,4 +1,4 @@
-# 🦁 Sistema Web de Ventas POS — Parque Safari
+#  Sistema Web de Ventas POS — Parque Safari
 
 > **Proyecto Académico — Analista Programador**  
 > **Etapa 1: MVP Visual / Maqueta Completa y Navegable**
@@ -7,7 +7,7 @@ Aplicación web desarrollada en **Django (MVT)** con diseño táctil optimizado 
 
 ---
 
-## 🚀 Despliegue en Vercel
+##  Despliegue en Vercel
 
 Este proyecto está configurado para desplegarse automáticamente en **Vercel**:
 * **`vercel.json`**: Configuración de Serverless Function con `@vercel/python`.
@@ -22,7 +22,7 @@ Para desplegar:
 
 ---
 
-## 🖥️ Módulos Incluidos
+##  Módulos Incluidos
 
 1. **Login**: Acceso táctil con selector rápido de roles demostrativos (Cajero, Administrador, Cocina, Bar).
 2. **Dashboard**: Panel principal con métricas clave (ventas del día, ticket promedio, ocupación de mesas, pedidos activos) y accesos directos.
@@ -45,7 +45,7 @@ Para desplegar:
 
 ---
 
-## 🛠️ Ejecución Local
+##  Ejecución Local
 
 ```bash
 # 1. Clonar el repositorio
@@ -70,6 +70,6 @@ Abre en tu navegador: **`http://127.0.0.1:8000/`**
 
 ---
 
-## 🎨 Estructura de Estilos
+##  Estructura de Estilos
 * **`static/css/estilos.css`**: Hoja de estilos principal del sistema POS.
 * **`static/js/pos.js`**: Lógica de interacción táctil, carrito de compras y reloj digital en vivo.
