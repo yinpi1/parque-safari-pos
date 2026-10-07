@@ -4,141 +4,328 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Acceso POS | Parque Safari Chile</title>
+    <title>Acceso POS | Parque Safari Chile (MVP 2.1)</title>
+    <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/estilos.css' %}">
     <style>
         body {
-            background: radial-gradient(circle at 50% 30%, #1e293b 0%, #0b1120 100%);
+            background: radial-gradient(circle at 50% 20%, #151f35 0%, #080c16 100%);
             display: flex;
             align-items: center;
             justify-content: center;
             min-height: 100vh;
             margin: 0;
             padding: 1.5rem;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            color: #f1f5f9;
         }
-        .login-box {
+        .login-wrapper {
             width: 100%;
-            max-width: 460px;
-            background: #131c2e;
-            border: 1px solid #334155;
-            border-radius: 20px;
-            padding: 2.5rem 2.2rem;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            max-width: 500px;
         }
-        .login-logo {
-            width: 72px;
-            height: 72px;
+        .login-card {
+            background: rgba(17, 24, 39, 0.92);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            padding: 2.25rem 2rem;
+            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 1px 1px rgba(255, 255, 255, 0.05);
+        }
+        .login-brand-icon {
+            width: 64px;
+            height: 64px;
             background: linear-gradient(135deg, #f59e0b, #d97706);
             border-radius: 18px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2.5rem;
-            color: #000;
-            margin: 0 auto 1.25rem;
-            box-shadow: 0 10px 25px rgba(245, 158, 11, 0.4);
+            font-size: 2.2rem;
+            color: #0b0f19;
+            margin: 0 auto 1rem;
+            box-shadow: 0 8px 24px rgba(245, 158, 11, 0.35);
+        }
+        .mvp-badge {
+            background: rgba(245, 158, 11, 0.12);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: #fbbf24;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            padding: 0.3rem 0.85rem;
+            border-radius: 30px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
         }
         .touch-input {
-            background: #1e293b;
-            border: 2px solid #334155;
+            background: #0d1322;
+            border: 1px solid #243048;
             color: #fff;
             padding: 0.85rem 1.15rem;
-            font-size: 1.05rem;
+            font-size: 1rem;
             border-radius: 12px;
+            transition: all 0.2s ease;
         }
         .touch-input:focus {
-            background: #1e293b;
+            background: #0f172a;
             color: #fff;
             border-color: #f59e0b;
-            box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.2);
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+            outline: none;
         }
-        .role-chip {
-            background: #1e293b;
-            border: 1px solid #334155;
-            color: #cbd5e1;
-            padding: 0.45rem 0.75rem;
-            border-radius: 8px;
-            font-size: 0.8rem;
-            font-weight: 600;
+        /* Tarjetas de Rol Demo (Solo MVP) */
+        .demo-roles-panel {
+            background: rgba(13, 19, 34, 0.7);
+            border: 1px dashed rgba(245, 158, 11, 0.35);
+            border-radius: 16px;
+            padding: 1.15rem;
+            margin-bottom: 1.5rem;
+        }
+        .demo-roles-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.85rem;
+        }
+        .demo-roles-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.65rem;
+        }
+        .role-card-btn {
+            background: #111a2d;
+            border: 1px solid #222e47;
+            border-radius: 12px;
+            padding: 0.65rem 0.75rem;
+            text-align: left;
             cursor: pointer;
-            transition: all 0.15s;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            color: #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+            position: relative;
         }
-        .role-chip:hover {
+        .role-card-btn:hover {
+            background: #18243e;
+            border-color: #3b4d75;
+            transform: translateY(-1px);
+        }
+        .role-card-btn.active {
             border-color: #f59e0b;
+            background: rgba(245, 158, 11, 0.08);
+            box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.35);
+        }
+        .role-card-btn .role-tag {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        .role-card-btn .user-name {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #fff;
+            line-height: 1.2;
+        }
+        .role-card-btn .role-focus {
+            font-size: 0.7rem;
+            color: #94a3b8;
+            line-height: 1.2;
+        }
+        .role-card-btn .check-indicator {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            font-size: 0.8rem;
             color: #f59e0b;
+            display: none;
+        }
+        .role-card-btn.active .check-indicator {
+            display: block;
+        }
+
+        /* Colores por rol */
+        .role-cajero .role-tag { color: #10b981; }
+        .role-admin .role-tag { color: #a855f7; }
+        .role-cocina .role-tag { color: #f97316; }
+        .role-bar .role-tag { color: #06b6d4; }
+
+        .btn-submit-login {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: #0b0f19;
+            font-weight: 800;
+            font-size: 1.05rem;
+            border: none;
+            padding: 0.95rem;
+            border-radius: 14px;
+            transition: all 0.2s ease;
+            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.3);
+        }
+        .btn-submit-login:hover {
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 25px rgba(245, 158, 11, 0.45);
+            color: #000;
         }
     </style>
 </head>
 <body>
-    <div class="login-box">
-        <div class="text-center mb-4">
-            <div class="login-logo">
-                <i class="bi bi-compass-fill"></i>
-            </div>
-            <h2 class="fw-bold mb-1 text-white text-uppercase" style="letter-spacing: 1px;">Parque Safari</h2>
-            <p class="text-warning fw-semibold mb-0" style="font-size: 0.85rem; letter-spacing: 2px;">SISTEMA WEB DE VENTAS POS</p>
-            <div class="badge bg-secondary mt-2 px-3 py-1">Terminal Caja 01 &bull; Versión MVP</div>
-        </div>
-
-        <form method="POST" action="{% url 'login' %}">
-            {% csrf_token %}
-            <div class="mb-3">
-                <label class="form-label text-light fw-bold small">USUARIO DEL SISTEMA</label>
-                <div class="input-group">
-                    <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-person-fill"></i></span>
-                    <input type="text" id="userInput" name="username" class="form-control touch-input" value="jvalenzuela" required placeholder="Ingrese usuario">
+    <div class="login-wrapper">
+        <div class="login-card">
+            <!-- Encabezado de Marca -->
+            <div class="text-center mb-4">
+                <div class="login-brand-icon">
+                    <i class="bi bi-compass-fill"></i>
+                </div>
+                <h2 class="fw-bold mb-1 text-white text-uppercase" style="letter-spacing: 0.5px; font-size: 1.5rem;">Parque Safari</h2>
+                <p class="text-secondary fw-semibold mb-2" style="font-size: 0.82rem; letter-spacing: 1.5px;">SISTEMA WEB DE VENTAS POS</p>
+                <div class="mvp-badge">
+                    <i class="bi bi-stars"></i>
+                    <span>VERSIÓN 2.1 &bull; MAQUETA INTERACTIVA</span>
                 </div>
             </div>
 
-            <div class="mb-4">
-                <label class="form-label text-light fw-bold small">CONTRASEÑA / PIN</label>
-                <div class="input-group">
-                    <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-lock-fill"></i></span>
-                    <input type="password" id="passInput" name="password" class="form-control touch-input" value="123456" required placeholder="••••••••">
+            <!-- Accesos Rápidos de Prueba (Solo MVP) -->
+            <div class="demo-roles-panel">
+                <div class="demo-roles-header">
+                    <span class="text-warning small fw-bold text-uppercase d-flex align-items-center gap-1">
+                        <i class="bi bi-person-badge-fill"></i>
+                        <span>Acceso Rápido (Solo MVP)</span>
+                    </span>
+                    <span class="badge bg-secondary text-light font-monospace" style="font-size: 0.65rem;">DEMO ROLES</span>
+                </div>
+                <p class="text-secondary mb-2" style="font-size: 0.74rem;">
+                    Selecciona un perfil demostrativo para evaluar permisos y enfoque de trabajo:
+                </p>
+
+                <div class="demo-roles-grid">
+                    <!-- Cajero -->
+                    <div class="role-card-btn role-cajero active" id="chip-cajero" onclick="selectRole('jvalenzuela', 'cajero', 'Jean Valenzuela', 'Cajero', 'Ventas POS & Mesas')">
+                        <div class="role-tag"><i class="bi bi-calculator"></i> Cajero</div>
+                        <div class="user-name">Jean Valenzuela</div>
+                        <div class="role-focus">Foco: POS & Mesas</div>
+                        <i class="bi bi-check-circle-fill check-indicator"></i>
+                    </div>
+
+                    <!-- Administrador -->
+                    <div class="role-card-btn role-admin" id="chip-admin" onclick="selectRole('cmendoza', 'admin', 'Carlos Mendoza', 'Administrador', 'Gestión Total')">
+                        <div class="role-tag"><i class="bi bi-shield-lock-fill"></i> Admin</div>
+                        <div class="user-name">Carlos Mendoza</div>
+                        <div class="role-focus">Foco: Gestión & Config</div>
+                        <i class="bi bi-check-circle-fill check-indicator"></i>
+                    </div>
+
+                    <!-- Cocina -->
+                    <div class="role-card-btn role-cocina" id="chip-cocina" onclick="selectRole('mtorres', 'cocina', 'Matías Torres', 'Cocinero Jefe', 'Comandas KDS')">
+                        <div class="role-tag"><i class="bi bi-fire"></i> Cocina</div>
+                        <div class="user-name">Matías Torres</div>
+                        <div class="role-focus">Foco: Cocina KDS</div>
+                        <i class="bi bi-check-circle-fill check-indicator"></i>
+                    </div>
+
+                    <!-- Bar -->
+                    <div class="role-card-btn role-bar" id="chip-bar" onclick="selectRole('pgomez', 'bar', 'Patricia Gómez', 'Barman', 'Líquidos BDS')">
+                        <div class="role-tag"><i class="bi bi-cup-straw"></i> Bar</div>
+                        <div class="user-name">Patricia Gómez</div>
+                        <div class="role-focus">Foco: Bar BDS</div>
+                        <i class="bi bi-check-circle-fill check-indicator"></i>
+                    </div>
                 </div>
             </div>
 
-            <!-- Accesos rápidos demostrativos -->
-            <div class="mb-4">
-                <div class="text-secondary small fw-bold mb-2">ACCESO RÁPIDO DEMO:</div>
-                <div class="d-flex flex-wrap gap-2">
-                    <span class="role-chip" onclick="setDemo('jvalenzuela', 'Cajero')">
-                        <i class="bi bi-person-badge me-1"></i> Cajero (Jean)
-                    </span>
-                    <span class="role-chip" onclick="setDemo('cmendoza', 'Admin')">
-                        <i class="bi bi-shield-check me-1"></i> Admin (Carlos)
-                    </span>
-                    <span class="role-chip" onclick="setDemo('mtorres', 'Cocina')">
-                        <i class="bi bi-fire me-1"></i> Cocina (Matías)
-                    </span>
-                    <span class="role-chip" onclick="setDemo('pgomez', 'Bar')">
-                        <i class="bi bi-cup-straw me-1"></i> Bar (Patricia)
-                    </span>
+            <!-- Formulario de Acceso -->
+            <form method="POST" action="{% url 'login' %}" onsubmit="saveActiveRoleBeforeSubmit()">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label text-secondary fw-semibold small mb-1">USUARIO ASIGNADO</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-dark border-secondary text-secondary" style="border-radius: 12px 0 0 12px; border-color: #243048 !important;"><i class="bi bi-person-fill"></i></span>
+                        <input type="text" id="userInput" name="username" class="form-control touch-input" value="jvalenzuela" required placeholder="Usuario del sistema" style="border-radius: 0 12px 12px 0;">
+                    </div>
                 </div>
+
+                <div class="mb-4">
+                    <label class="form-label text-secondary fw-semibold small mb-1">PIN / CLAVE DE ACCESO</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-dark border-secondary text-secondary" style="border-radius: 12px 0 0 12px; border-color: #243048 !important;"><i class="bi bi-lock-fill"></i></span>
+                        <input type="password" id="passInput" name="password" class="form-control touch-input" value="123456" required placeholder="••••••••" style="border-radius: 0 12px 12px 0;">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-submit-login w-100 d-flex align-items-center justify-content-center gap-2">
+                    <span id="submitLabel">INGRESAR COMO CAJERO</span>
+                    <i class="bi bi-arrow-right-circle-fill fs-5"></i>
+                </button>
+            </form>
+
+            <div class="text-center mt-3 pt-3 border-top" style="border-color: rgba(255, 255, 255, 0.08) !important;">
+                <small class="text-secondary" style="font-size: 0.72rem;">
+                    Terminal POS 01 &bull; Parque Safari Rancagua &bull; Analista Programador
+                </small>
             </div>
-
-            <button type="submit" class="btn btn-warning w-100 py-3 fw-bold fs-5 rounded-3 shadow-lg d-flex align-items-center justify-content-center gap-2">
-                <span>INGRESAR AL SISTEMA</span>
-                <i class="bi bi-arrow-right-circle-fill"></i>
-            </button>
-        </form>
-
-        <div class="text-center mt-4 pt-3 border-top border-secondary">
-            <small class="text-secondary">
-                Parque Safari Chile &bull; Analista Programador<br>
-                Maqueta Visual Demostrativa
-            </small>
         </div>
     </div>
 
     <script>
-        function setDemo(user, role) {
-            document.getElementById('userInput').value = user;
+        let selectedRoleState = {
+            username: 'jvalenzuela',
+            roleKey: 'cajero',
+            nombre: 'Jean Valenzuela',
+            cargo: 'Cajero',
+            focus: 'Ventas POS & Mesas',
+            badgeClass: 'bg-emerald'
+        };
+
+        function selectRole(username, roleKey, nombre, cargo, focus) {
+            selectedRoleState = { username, roleKey, nombre, cargo, focus };
+            
+            // Actualizar campos
+            document.getElementById('userInput').value = username;
             document.getElementById('passInput').value = '123456';
+            
+            // Actualizar botón
+            const submitLabel = document.getElementById('submitLabel');
+            if (submitLabel) {
+                submitLabel.textContent = `INGRESAR COMO ${cargo.toUpperCase()}`;
+            }
+
+            // Actualizar chips activos
+            document.querySelectorAll('.role-card-btn').forEach(btn => btn.classList.remove('active'));
+            const activeChip = document.getElementById(`chip-${roleKey}`);
+            if (activeChip) activeChip.classList.add('active');
+
+            // Guardar en localStorage para que persista en toda la app
+            localStorage.setItem('safari_active_role', JSON.stringify(selectedRoleState));
         }
+
+        function saveActiveRoleBeforeSubmit() {
+            localStorage.setItem('safari_active_role', JSON.stringify(selectedRoleState));
+        }
+
+        // Al cargar la página, restaurar o setear por defecto
+        document.addEventListener('DOMContentLoaded', () => {
+            const saved = localStorage.getItem('safari_active_role');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    selectRole(parsed.username, parsed.roleKey, parsed.nombre, parsed.cargo, parsed.focus);
+                } catch(e) {
+                    selectRole('jvalenzuela', 'cajero', 'Jean Valenzuela', 'Cajero', 'Ventas POS & Mesas');
+                }
+            } else {
+                selectRole('jvalenzuela', 'cajero', 'Jean Valenzuela', 'Cajero', 'Ventas POS & Mesas');
+            }
+        });
     </script>
 </body>
 </html>

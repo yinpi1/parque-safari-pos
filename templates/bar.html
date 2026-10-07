@@ -1,36 +1,107 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block content %}
 <div class="container-fluid px-0">
-    <!-- Header BDS -->
-    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
-        <div>
-            <div class="d-flex align-items-center gap-3">
-                <div class="p-2 rounded bg-info text-dark fs-3">
-                    <i class="bi bi-cup-straw"></i>
+    <!-- Header BDS Minimalista & Métricas Clave -->
+    <div class="pos-view-header d-flex flex-wrap justify-content-between align-items-center mb-3 pb-3">
+        <div class="d-flex align-items-center gap-3">
+            <div class="pos-header-icon bg-info bg-opacity-20 text-info">
+                <i class="bi bi-cup-straw"></i>
+            </div>
+            <div>
+                <div class="d-flex align-items-center gap-2">
+                    <h2 class="pos-view-title mb-0">Bar BDS (Bar Display System)</h2>
+                    <span class="badge bg-info bg-opacity-25 text-info font-monospace px-2 py-1">PANTALLA BARRA</span>
                 </div>
-                <div>
-                    <h2 class="fw-bold mb-0 text-white">Bar BDS (Bar Display System)</h2>
-                    <p class="text-secondary mb-0">Despacho de jugos naturales, cervezas schop, cafetería y helados</p>
-                </div>
+                <p class="pos-view-subtitle mb-0">Despacho de jugos naturales, cervezas schop, cafetería y helados</p>
             </div>
         </div>
-        <div class="d-flex gap-3 align-items-center">
-            <div class="d-flex gap-2">
-                <span class="badge bg-danger p-2 fs-6">Pendientes: {{ total_pendientes }}</span>
-                <span class="badge bg-warning text-dark p-2 fs-6">En Preparación: {{ total_en_prep }}</span>
-                <span class="badge bg-success p-2 fs-6">Listos en Barra: {{ total_listos }}</span>
+
+        <div class="d-flex gap-2 align-items-center mt-2 mt-md-0">
+            <div class="pos-kds-mini-stats d-none d-lg-flex">
+                <div class="stat-item"><span class="label">Tiempo Promedio Bar:</span> <strong class="val font-monospace text-info">{{ tiempo_promedio }}</strong></div>
             </div>
-            <button class="btn btn-outline-info fw-bold" onclick="location.reload()">
-                <i class="bi bi-arrow-clockwise"></i> Refrescar
+            <button class="btn btn-outline-secondary btn-sm fw-bold d-flex align-items-center gap-2" onclick="location.reload()" title="Refrescar barra">
+                <i class="bi bi-arrow-clockwise"></i>
+                <span class="d-none d-sm-inline">Refrescar</span>
             </button>
         </div>
     </div>
 
+    <!-- BARRA DE FILTROS TÁCTIL PARA PEDIDOS DE BARRA (MVP 2.1) -->
+    <div class="pos-filter-toolbar mb-4">
+        <div class="row g-2 align-items-center">
+            <!-- Filtro de Estado: Pills Táctiles -->
+            <div class="col-12 col-xl-7">
+                <div class="pos-filter-pills" id="bdsStatusPills">
+                    <button class="filter-pill active" data-filter-status="todos">
+                        <span>Todos</span>
+                        <span class="pill-counter" id="countBarAll">{{ pedidos|length }}</span>
+                    </button>
+                    <button class="filter-pill pill-atrasado" data-filter-status="atrasados">
+                        <i class="bi bi-exclamation-triangle-fill text-danger me-1"></i>
+                        <span>Atrasados (>10m)</span>
+                        <span class="pill-counter" id="countBarAtrasados">0</span>
+                    </button>
+                    <button class="filter-pill" data-filter-status="Pendiente">
+                        <i class="bi bi-hourglass-split text-danger me-1"></i>
+                        <span>Pendientes</span>
+                        <span class="pill-counter" id="countBarPendientes">{{ total_pendientes }}</span>
+                    </button>
+                    <button class="filter-pill" data-filter-status="En preparación">
+                        <i class="bi bi-cup-hot text-warning me-1"></i>
+                        <span>En Preparación</span>
+                        <span class="pill-counter" id="countBarPrep">{{ total_en_prep }}</span>
+                    </button>
+                    <button class="filter-pill" data-filter-status="Listo">
+                        <i class="bi bi-check2-circle text-success me-1"></i>
+                        <span>Listos en Barra</span>
+                        <span class="pill-counter" id="countBarListos">{{ total_listos }}</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filtro de Ubicación (Menú Desplegable) -->
+            <div class="col-6 col-md-4 col-xl-2">
+                <div class="pos-select-wrapper">
+                    <select class="form-select pos-filter-select" id="bdsLocationFilter">
+                        <option value="todas">📍 Todas las ubicaciones</option>
+                        <option value="MESA">🍽️ Solo Mesas</option>
+                        <option value="BAR">🍸 Solo Barra / Directo</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Buscador en Vivo Táctil -->
+            <div class="col-6 col-md-5 col-xl-2">
+                <div class="pos-filter-search">
+                    <i class="bi bi-search search-icon"></i>
+                    <input type="text" id="bdsSearchInput" class="form-control" placeholder="Buscar trago, mesa, garzón...">
+                </div>
+            </div>
+
+            <!-- Botón Limpiar Filtro -->
+            <div class="col-12 col-md-3 col-xl-1 text-end">
+                <button class="btn btn-outline-secondary btn-sm w-100 pos-btn-reset-filter" id="btnResetBdsFilters" title="Restablecer filtros">
+                    <i class="bi bi-funnel-fill"></i> Limpiar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Grid de Tarjetas Bar BDS -->
-    <div class="pos-kds-grid">
+    <div class="pos-kds-grid" id="bdsGrid">
         {% for ped in pedidos %}
-        <div class="pos-kds-card" style="border-color: #3b82f6;">
+        <div class="pos-kds-card" style="border-color: rgba(59, 130, 246, 0.4);"
+             data-pedido-id="{{ ped.id }}"
+             data-venta="{{ ped.venta_num }}"
+             data-estado="{{ ped.estado }}"
+             data-minutos="{{ ped.minutos_espera }}"
+             data-modalidad="{{ ped.modalidad }}"
+             data-ubicacion="{{ ped.ubicacion }}"
+             data-mozo="{{ ped.mozo }}"
+             data-search-text="{{ ped.id }} {{ ped.venta_num }} {{ ped.ubicacion }} {{ ped.mozo }} {% for p in ped.productos %}{{ p.nombre }} {{ p.nota }} {% endfor %} {{ ped.comentarios }}">
             
             <!-- Cabecera -->
             <div class="pos-kds-header">
@@ -44,12 +115,16 @@
             </div>
 
             <!-- Datos de Ubicación y Tiempos -->
-            <div class="px-3 py-2 bg-dark d-flex justify-content-between align-items-center border-bottom border-secondary">
+            <div class="px-3 py-2 pos-kds-meta d-flex justify-content-between align-items-center">
                 <div class="fw-bold text-info fs-6">
                     <i class="bi bi-geo-alt-fill me-1"></i> {{ ped.ubicacion }}
+                    <small class="text-secondary fw-normal ms-2 d-none d-sm-inline">({{ ped.mozo }})</small>
                 </div>
-                <div class="text-secondary small font-monospace">
-                    <i class="bi bi-clock me-1"></i> {{ ped.hora }} (Hace {{ ped.minutos_espera }} min)
+                <div class="text-secondary small font-monospace d-flex align-items-center gap-1">
+                    <i class="bi bi-clock me-1"></i> {{ ped.hora }}
+                    <span class="badge {% if ped.minutos_espera >= 15 %}bg-danger text-white{% elif ped.minutos_espera >= 8 %}bg-warning text-dark{% else %}bg-secondary text-light{% endif %} font-monospace">
+                        {{ ped.minutos_espera }} min
+                    </span>
                 </div>
             </div>
 
@@ -58,8 +133,8 @@
                 <div class="text-secondary small fw-bold mb-2">LÍQUIDOS & COPAS A PREPARAR:</div>
                 {% for prod in ped.productos %}
                 <div class="pos-kds-item">
-                    <div class="pos-kds-item-qty bg-primary text-white">{{ prod.cant }}</div>
-                    <div>
+                    <div class="pos-kds-item-qty bg-info text-dark fw-bold">{{ prod.cant }}</div>
+                    <div class="flex-grow-1">
                         <div class="fw-bold text-white fs-6">{{ prod.nombre }}</div>
                         {% if prod.nota %}
                         <div class="pos-kds-item-note text-info">
@@ -72,14 +147,14 @@
 
                 <!-- Comentarios del Cliente / Garzón -->
                 {% if ped.comentarios %}
-                <div class="pos-kds-notes-box" style="background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.3); color: #93c5fd;">
-                    <i class="bi bi-chat-quote-fill me-1"></i>
+                <div class="pos-kds-notes-box" style="background: rgba(59, 130, 246, 0.08); border-color: rgba(59, 130, 246, 0.25); color: #93c5fd;">
+                    <i class="bi bi-chat-quote-fill me-1 text-info"></i>
                     <strong>NOTA SERVICIO:</strong> {{ ped.comentarios }}
                 </div>
                 {% endif %}
             </div>
 
-            <!-- Acciones BDS -->
+            <!-- Acciones BDS Táctiles -->
             <div class="pos-kds-footer">
                 {% if ped.estado == 'Pendiente' %}
                     <button class="btn btn-warning fw-bold w-100 kds-action-btn" data-action="preparar" style="grid-column: span 2;">
@@ -90,8 +165,8 @@
                         <i class="bi bi-check2-circle me-1"></i> Listo para Retiro
                     </button>
                 {% else %}
-                    <button class="btn btn-primary fw-bold w-100" style="grid-column: span 2;" onclick="alert('Pedido marcado como Entregado al garzón/cliente.')">
-                        <i class="bi bi-hand-thumbs-up-fill me-1"></i> Marcar como Entregado
+                    <button class="btn btn-outline-info fw-bold w-100" style="grid-column: span 2;" onclick="alert('Bebestible entregado al garzón o cliente.')">
+                        <i class="bi bi-check-all me-1"></i> Entregado en Barra
                     </button>
                 {% endif %}
             </div>
@@ -99,5 +174,114 @@
         </div>
         {% endfor %}
     </div>
+
+    <!-- Empty State -->
+    <div class="pos-empty-filter-state" id="bdsEmptyState" style="display: none;">
+        <div class="empty-icon text-secondary">
+            <i class="bi bi-cup-straw"></i>
+        </div>
+        <h4 class="fw-bold text-white mb-2">No hay comandas de bar con este filtro</h4>
+        <p class="text-secondary mb-3">Intenta cambiando el filtro de estado o limpiando el texto de búsqueda.</p>
+        <button class="btn btn-info fw-bold px-4" onclick="resetBdsFilters()">
+            <i class="bi bi-arrow-counterclockwise me-1"></i> Restablecer Filtros
+        </button>
+    </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        initBdsOrderFilter();
+    });
+
+    function initBdsOrderFilter() {
+        const pills = document.querySelectorAll('#bdsStatusPills .filter-pill');
+        const locSelect = document.getElementById('bdsLocationFilter');
+        const searchInput = document.getElementById('bdsSearchInput');
+        const btnReset = document.getElementById('btnResetBdsFilters');
+        const cards = document.querySelectorAll('#bdsGrid .pos-kds-card');
+        const emptyState = document.getElementById('bdsEmptyState');
+
+        // Contar atrasados (>10 min)
+        let atrasadosCount = 0;
+        cards.forEach(card => {
+            const min = parseInt(card.dataset.minutos || '0');
+            if (min >= 10 && card.dataset.estado !== 'Listo') {
+                atrasadosCount++;
+            }
+        });
+        const countAtrasadosEl = document.getElementById('countBarAtrasados');
+        if (countAtrasadosEl) countAtrasadosEl.textContent = atrasadosCount;
+
+        let currentStatusFilter = 'todos';
+
+        function applyFilter() {
+            const selectedLocation = locSelect ? locSelect.value : 'todas';
+            const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+            let visibleCount = 0;
+
+            cards.forEach(card => {
+                const cardEstado = card.dataset.estado;
+                const cardModalidad = card.dataset.modalidad;
+                const cardMinutos = parseInt(card.dataset.minutos || '0');
+                const cardText = (card.dataset.searchText || '').toLowerCase();
+
+                // 1. Estado
+                let matchesStatus = true;
+                if (currentStatusFilter === 'atrasados') {
+                    matchesStatus = cardMinutos >= 10 && cardEstado !== 'Listo';
+                } else if (currentStatusFilter !== 'todos') {
+                    matchesStatus = cardEstado === currentStatusFilter;
+                }
+
+                // 2. Ubicación
+                let matchesLocation = true;
+                if (selectedLocation !== 'todas') {
+                    matchesLocation = cardModalidad === selectedLocation;
+                }
+
+                // 3. Búsqueda
+                let matchesSearch = true;
+                if (query.length > 0) {
+                    matchesSearch = cardText.includes(query);
+                }
+
+                if (matchesStatus && matchesLocation && matchesSearch) {
+                    card.style.display = 'flex';
+                    visibleCount++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            if (emptyState) {
+                emptyState.style.display = visibleCount === 0 ? 'block' : 'none';
+            }
+        }
+
+        pills.forEach(pill => {
+            pill.addEventListener('click', () => {
+                pills.forEach(p => p.classList.remove('active'));
+                pill.classList.add('active');
+                currentStatusFilter = pill.dataset.filterStatus;
+                applyFilter();
+            });
+        });
+
+        if (locSelect) locSelect.addEventListener('change', applyFilter);
+        if (searchInput) searchInput.addEventListener('input', applyFilter);
+        if (btnReset) btnReset.addEventListener('click', () => window.resetBdsFilters());
+
+        window.resetBdsFilters = function() {
+            currentStatusFilter = 'todos';
+            pills.forEach(p => p.classList.remove('active'));
+            document.querySelector('#bdsStatusPills [data-filter-status="todos"]')?.classList.add('active');
+            if (locSelect) locSelect.value = 'todas';
+            if (searchInput) searchInput.value = '';
+            applyFilter();
+        };
+    }
+</script>
 {% endblock %}

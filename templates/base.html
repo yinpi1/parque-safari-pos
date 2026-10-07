@@ -4,144 +4,277 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ titulo|default:"Parque Safari — Sistema POS" }}</title>
+    <title>{{ titulo|default:"Parque Safari — Sistema POS" }} (MVP 2.1)</title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <!-- Google Fonts: Inter -->
+    <!-- Google Fonts: Inter & JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <!-- Custom POS Stylesheet -->
     <link rel="stylesheet" href="{% static 'css/estilos.css' %}">
 </head>
-<body>
+<body class="pos-app-body">
     <!-- Topbar Header -->
     <header class="pos-navbar">
-        <a href="{% url 'dashboard' %}" class="pos-brand">
-            <div class="pos-brand-logo">
-                <i class="bi bi-compass-fill"></i>
-            </div>
-            <div class="pos-brand-text">
-                <h1>Parque Safari</h1>
-                <span>SISTEMA WEB DE VENTAS POS</span>
-            </div>
-        </a>
+        <div class="d-flex align-items-center gap-2">
+            <!-- Botón Colapsar Menú para Maximizar Tablet / Pantalla Completa -->
+            <button class="pos-sidebar-toggle-btn" id="btnToggleSidebar" title="Alternar menú / Modo pantalla completa tablet">
+                <i class="bi bi-layout-sidebar-inset"></i>
+            </button>
+
+            <!-- Marca y Logo -->
+            <a href="{% url 'dashboard' %}" class="pos-brand">
+                <div class="pos-brand-logo">
+                    <i class="bi bi-compass-fill"></i>
+                </div>
+                <div class="pos-brand-text">
+                    <h1>Parque Safari</h1>
+                    <span>SISTEMA POS &bull; MVP 2.1</span>
+                </div>
+            </a>
+        </div>
 
         <div class="pos-header-info">
-            <!-- Terminal Status -->
-            <div class="pos-status-badge">
+            <!-- Terminal Status (Minimalist Pill) -->
+            <div class="pos-status-badge d-none d-sm-inline-flex">
                 <span class="pos-status-dot"></span>
-                <span>TERMINAL EN LÍNEA</span>
+                <span>EN LÍNEA &bull; CAJA 01</span>
             </div>
 
             <!-- Live Clock -->
             <div class="pos-clock" id="liveClock">00:00:00</div>
 
-            <!-- Active User -->
-            <div class="pos-user-badge">
-                <div class="pos-user-avatar">
-                    {{ usuario_actual.nombre|slice:":2"|upper }}
-                </div>
-                <div class="d-none d-md-block text-start">
-                    <div class="fw-bold" style="font-size: 0.85rem; line-height: 1.1;">{{ usuario_actual.nombre }}</div>
-                    <small class="text-warning" style="font-size: 0.72rem;">{{ usuario_actual.cargo }} &bull; Caja 01</small>
-                </div>
+            <!-- Selector / Pill de Rol Demostrativo con Dropdown (MVP 2.1) -->
+            <div class="dropdown pos-role-dropdown-wrapper">
+                <button class="pos-user-badge-btn dropdown-toggle" type="button" id="roleDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false" title="Cambiar rol demostrativo">
+                    <div class="pos-user-avatar" id="navAvatar">
+                        {{ usuario_actual.nombre|slice:":2"|upper }}
+                    </div>
+                    <div class="d-none d-md-block text-start pe-1">
+                        <div class="fw-bold nav-user-name" id="navUserName">{{ usuario_actual.nombre }}</div>
+                        <div class="nav-role-badge-tag" id="navRoleTag">
+                            <span class="role-pill-indicator" id="rolePillDot"></span>
+                            <span id="navRoleCargo">{{ usuario_actual.cargo }}</span>
+                        </div>
+                    </div>
+                    <span class="badge bg-warning text-dark ms-1 d-none d-xl-inline-block font-monospace role-switcher-badge">
+                        ROL MVP ▼
+                    </span>
+                </button>
+                
+                <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end shadow-lg pos-role-menu" aria-labelledby="roleDropdownBtn">
+                    <li class="dropdown-header text-warning small fw-bold d-flex justify-content-between align-items-center">
+                        <span>SIMULADOR DE ROLES (MVP)</span>
+                        <span class="badge bg-secondary font-monospace" style="font-size: 0.65rem;">EVALUACIÓN</span>
+                    </li>
+                    <li><p class="text-secondary px-3 py-1 mb-1" style="font-size: 0.72rem;">Alterna perfiles para comprobar niveles de permisos y foco de trabajo:</p></li>
+                    
+                    <li><a class="dropdown-item role-item-opt d-flex align-items-center gap-2" href="javascript:void(0)" onclick="setGlobalRole('cajero')">
+                        <span class="badge-role-avatar role-cajero-bg"><i class="bi bi-calculator"></i></span>
+                        <div class="flex-grow-1">
+                            <div class="fw-bold text-white small">Cajero &bull; Jean Valenzuela</div>
+                            <small class="text-emerald d-block" style="font-size: 0.7rem;">Foco: Ventas POS & Mesas</small>
+                        </div>
+                    </a></li>
+
+                    <li><a class="dropdown-item role-item-opt d-flex align-items-center gap-2" href="javascript:void(0)" onclick="setGlobalRole('admin')">
+                        <span class="badge-role-avatar role-admin-bg"><i class="bi bi-shield-check"></i></span>
+                        <div class="flex-grow-1">
+                            <div class="fw-bold text-white small">Administrador &bull; Carlos Mendoza</div>
+                            <small class="text-purple d-block" style="font-size: 0.7rem;">Permisos: Gestión Total & Reportes</small>
+                        </div>
+                    </a></li>
+
+                    <li><a class="dropdown-item role-item-opt d-flex align-items-center gap-2" href="javascript:void(0)" onclick="setGlobalRole('cocina')">
+                        <span class="badge-role-avatar role-cocina-bg"><i class="bi bi-fire"></i></span>
+                        <div class="flex-grow-1">
+                            <div class="fw-bold text-white small">Cocina KDS &bull; Matías Torres</div>
+                            <small class="text-orange d-block" style="font-size: 0.7rem;">Foco: Comandas calientes</small>
+                        </div>
+                    </a></li>
+
+                    <li><a class="dropdown-item role-item-opt d-flex align-items-center gap-2" href="javascript:void(0)" onclick="setGlobalRole('bar')">
+                        <span class="badge-role-avatar role-bar-bg"><i class="bi bi-cup-straw"></i></span>
+                        <div class="flex-grow-1">
+                            <div class="fw-bold text-white small">Bar BDS &bull; Patricia Gómez</div>
+                            <small class="text-cyan d-block" style="font-size: 0.7rem;">Foco: Barra & Líquidos</small>
+                        </div>
+                    </a></li>
+
+                    <li><hr class="dropdown-divider border-secondary my-2"></li>
+                    <li class="px-3 py-1">
+                        <small class="text-secondary" style="font-size: 0.7rem;">
+                            <i class="bi bi-info-circle me-1"></i>En el menú lateral se iluminará el área de foco del rol seleccionado.
+                        </small>
+                    </li>
+                </ul>
             </div>
 
             <!-- Logout / Lock -->
-            <a href="{% url 'login' %}" class="btn btn-outline-danger btn-sm px-3 py-1 fw-bold" title="Cerrar Turno / Salir">
-                <i class="bi bi-box-arrow-right me-1"></i> Salir
+            <a href="{% url 'login' %}" class="btn btn-outline-danger btn-sm px-3 py-1 fw-bold pos-logout-btn" title="Cerrar Turno / Salir">
+                <i class="bi bi-box-arrow-right me-1"></i> <span class="d-none d-sm-inline">Salir</span>
             </a>
         </div>
     </header>
 
     <!-- App Layout (Sidebar + Main Content) -->
-    <div class="pos-layout">
-        <!-- Sidebar Navigation -->
-        <aside class="pos-sidebar">
-            <div>
-                <div class="pos-nav-group-title">Operación de Ventas</div>
-                <a href="{% url 'pos' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'pos' %}active{% endif %}">
-                    <i class="bi bi-calculator"></i>
-                    <span>Punto de Venta</span>
-                    <span class="badge bg-danger pos-nav-badge">POS</span>
-                </a>
-                <a href="{% url 'dashboard' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
-                    <i class="bi bi-speedometer2"></i>
-                    <span>Panel Principal</span>
-                </a>
-                <a href="{% url 'mesas' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'mesas' %}active{% endif %}">
-                    <i class="bi bi-layout-text-window-reverse"></i>
-                    <span>Mapa de Mesas</span>
-                    <span class="badge bg-secondary pos-nav-badge">12</span>
-                </a>
-                <a href="{% url 'ticket' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'ticket' %}active{% endif %}">
-                    <i class="bi bi-receipt-cutoff"></i>
-                    <span>Ticket y Comandas</span>
-                </a>
+    <div class="pos-layout" id="posAppLayout">
+        <!-- Sidebar Navigation con Acordeón / Menús Desplegables -->
+        <aside class="pos-sidebar" id="posSidebar">
+            <div class="pos-sidebar-inner">
+                
+                <!-- Búsqueda rápida interna de módulos (opcional para agilidad) -->
+                <div class="pos-sidebar-quick-role mb-3 p-2 rounded-3" id="sidebarRoleBanner">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <span class="small fw-bold text-uppercase" id="sidebarRoleTitle" style="font-size: 0.72rem; letter-spacing: 0.5px;">ROL: CAJERO</span>
+                        <span class="badge font-monospace" id="sidebarRoleFocusBadge" style="font-size: 0.65rem; background: rgba(16, 185, 129, 0.2); color: #34d399;">FOCO ACTIVO</span>
+                    </div>
+                </div>
 
-                <div class="pos-nav-group-title mt-3">Producción y Cocina</div>
-                <a href="{% url 'distribucion' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'distribucion' %}active{% endif %}">
-                    <i class="bi bi-diagram-3"></i>
-                    <span>Distribución</span>
-                </a>
-                <a href="{% url 'cocina' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'cocina' %}active{% endif %}">
-                    <i class="bi bi-fire"></i>
-                    <span>Cocina (KDS)</span>
-                    <span class="badge bg-warning text-dark pos-nav-badge">3</span>
-                </a>
-                <a href="{% url 'bar' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'bar' %}active{% endif %}">
-                    <i class="bi bi-cup-straw"></i>
-                    <span>Bar (BDS)</span>
-                    <span class="badge bg-info text-dark pos-nav-badge">2</span>
-                </a>
+                <!-- GRUPO 1: Operación & Ventas -->
+                <div class="pos-nav-accordion-group">
+                    <button class="pos-nav-accordion-header" type="button" data-group="ventas">
+                        <span class="d-flex align-items-center gap-2">
+                            <i class="bi bi-cart3 text-warning"></i>
+                            <span>Ventas & Salón</span>
+                        </span>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-danger pos-nav-badge">POS</span>
+                            <i class="bi bi-chevron-down accordion-arrow"></i>
+                        </div>
+                    </button>
+                    <div class="pos-nav-accordion-collapse {% if request.resolver_match.url_name in 'pos,dashboard,mesas,ticket' %}show{% endif %}" id="group-ventas">
+                        <a href="{% url 'pos' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'pos' %}active{% endif %}" data-focus-role="cajero">
+                            <i class="bi bi-calculator"></i>
+                            <span>Punto de Venta</span>
+                            <span class="role-focus-tag d-none">MI ÁREA</span>
+                        </a>
+                        <a href="{% url 'dashboard' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" data-focus-role="admin">
+                            <i class="bi bi-speedometer2"></i>
+                            <span>Panel Principal</span>
+                            <span class="role-focus-tag d-none">MI ÁREA</span>
+                        </a>
+                        <a href="{% url 'mesas' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'mesas' %}active{% endif %}" data-focus-role="cajero">
+                            <i class="bi bi-layout-text-window-reverse"></i>
+                            <span>Mapa de Mesas</span>
+                            <span class="badge bg-secondary pos-nav-badge">12</span>
+                            <span class="role-focus-tag d-none">MI ÁREA</span>
+                        </a>
+                        <a href="{% url 'ticket' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'ticket' %}active{% endif %}" data-focus-role="cajero">
+                            <i class="bi bi-receipt-cutoff"></i>
+                            <span>Ticket y Comandas</span>
+                        </a>
+                    </div>
+                </div>
 
-                <div class="pos-nav-group-title mt-3">Catálogo y Administración</div>
-                <a href="{% url 'productos' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'productos' %}active{% endif %}">
-                    <i class="bi bi-boxes"></i>
-                    <span>Productos</span>
-                </a>
-                <a href="{% url 'menus' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'menus' %}active{% endif %}">
-                    <i class="bi bi-stars"></i>
-                    <span>Menús & Combos</span>
-                </a>
-                <a href="{% url 'fiados' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'fiados' %}active{% endif %}">
-                    <i class="bi bi-journal-bookmark-fill"></i>
-                    <span>Fiados Personal</span>
-                </a>
-                <a href="{% url 'usuarios' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'usuarios' %}active{% endif %}">
-                    <i class="bi bi-people-fill"></i>
-                    <span>Usuarios y Cargos</span>
-                </a>
+                <!-- GRUPO 2: Producción KDS & BDS -->
+                <div class="pos-nav-accordion-group mt-2">
+                    <button class="pos-nav-accordion-header" type="button" data-group="produccion">
+                        <span class="d-flex align-items-center gap-2">
+                            <i class="bi bi-fire text-danger"></i>
+                            <span>Producción en Vivo</span>
+                        </span>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-warning text-dark pos-nav-badge">KDS</span>
+                            <i class="bi bi-chevron-down accordion-arrow"></i>
+                        </div>
+                    </button>
+                    <div class="pos-nav-accordion-collapse {% if request.resolver_match.url_name in 'cocina,bar,distribucion' %}show{% endif %}" id="group-produccion">
+                        <a href="{% url 'cocina' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'cocina' %}active{% endif %}" data-focus-role="cocina">
+                            <i class="bi bi-fire text-danger"></i>
+                            <span>Cocina (KDS)</span>
+                            <span class="badge bg-warning text-dark pos-nav-badge">3</span>
+                            <span class="role-focus-tag d-none">MI ÁREA</span>
+                        </a>
+                        <a href="{% url 'bar' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'bar' %}active{% endif %}" data-focus-role="bar">
+                            <i class="bi bi-cup-straw text-info"></i>
+                            <span>Bar (BDS)</span>
+                            <span class="badge bg-info text-dark pos-nav-badge">2</span>
+                            <span class="role-focus-tag d-none">MI ÁREA</span>
+                        </a>
+                        <a href="{% url 'distribucion' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'distribucion' %}active{% endif %}" data-focus-role="admin">
+                            <i class="bi bi-diagram-3"></i>
+                            <span>Distribución</span>
+                        </a>
+                    </div>
+                </div>
 
-                <div class="pos-nav-group-title mt-3">Reportes y Ajustes</div>
-                <a href="{% url 'estadisticas' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'estadisticas' %}active{% endif %}">
-                    <i class="bi bi-graph-up-arrow"></i>
-                    <span>Estadísticas</span>
-                </a>
-                <a href="{% url 'reportes' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'reportes' %}active{% endif %}">
-                    <i class="bi bi-file-earmark-bar-graph"></i>
-                    <span>Reportes</span>
-                </a>
-                <a href="{% url 'configuracion' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'configuracion' %}active{% endif %}">
-                    <i class="bi bi-gear-fill"></i>
-                    <span>Configuración</span>
-                </a>
+                <!-- GRUPO 3: Catálogo & Colaboradores -->
+                <div class="pos-nav-accordion-group mt-2">
+                    <button class="pos-nav-accordion-header" type="button" data-group="catalogo">
+                        <span class="d-flex align-items-center gap-2">
+                            <i class="bi bi-boxes text-info"></i>
+                            <span>Catálogo & Personal</span>
+                        </span>
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-chevron-down accordion-arrow"></i>
+                        </div>
+                    </button>
+                    <div class="pos-nav-accordion-collapse {% if request.resolver_match.url_name in 'productos,menus,fiados,usuarios' %}show{% endif %}" id="group-catalogo">
+                        <a href="{% url 'productos' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'productos' %}active{% endif %}" data-focus-role="admin">
+                            <i class="bi bi-boxes"></i>
+                            <span>Productos</span>
+                        </a>
+                        <a href="{% url 'menus' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'menus' %}active{% endif %}" data-focus-role="admin">
+                            <i class="bi bi-stars"></i>
+                            <span>Menús & Combos</span>
+                        </a>
+                        <a href="{% url 'fiados' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'fiados' %}active{% endif %}" data-focus-role="admin">
+                            <i class="bi bi-journal-bookmark-fill"></i>
+                            <span>Fiados Personal</span>
+                        </a>
+                        <a href="{% url 'usuarios' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'usuarios' %}active{% endif %}" data-focus-role="admin">
+                            <i class="bi bi-people-fill"></i>
+                            <span>Usuarios y Cargos</span>
+                            <span class="badge bg-secondary font-monospace" style="font-size: 0.65rem;">ADMIN</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- GRUPO 4: Reportes & Administración -->
+                <div class="pos-nav-accordion-group mt-2">
+                    <button class="pos-nav-accordion-header" type="button" data-group="admin">
+                        <span class="d-flex align-items-center gap-2">
+                            <i class="bi bi-sliders text-success"></i>
+                            <span>Reportes & Sistema</span>
+                        </span>
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-chevron-down accordion-arrow"></i>
+                        </div>
+                    </button>
+                    <div class="pos-nav-accordion-collapse {% if request.resolver_match.url_name in 'estadisticas,reportes,configuracion' %}show{% endif %}" id="group-admin">
+                        <a href="{% url 'estadisticas' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'estadisticas' %}active{% endif %}" data-focus-role="admin">
+                            <i class="bi bi-graph-up-arrow"></i>
+                            <span>Estadísticas</span>
+                        </a>
+                        <a href="{% url 'reportes' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'reportes' %}active{% endif %}" data-focus-role="admin">
+                            <i class="bi bi-file-earmark-bar-graph"></i>
+                            <span>Centro de Reportes</span>
+                        </a>
+                        <a href="{% url 'configuracion' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'configuracion' %}active{% endif %}" data-focus-role="admin">
+                            <i class="bi bi-gear-fill"></i>
+                            <span>Configuración</span>
+                            <span class="badge bg-secondary font-monospace" style="font-size: 0.65rem;">ADMIN</span>
+                        </a>
+                    </div>
+                </div>
+
             </div>
 
             <!-- Footer Badge -->
-            <div class="pt-3 border-top border-secondary text-center">
+            <div class="pos-sidebar-footer">
                 <small class="text-secondary" style="font-size: 0.72rem;">
-                    Parque Safari POS &bull; v1.0 MVP<br>
-                    Optimizado Full HD (1920x1080)
+                    Parque Safari POS &bull; v2.1 MVP<br>
+                    Optimizado Tablet 1080p
                 </small>
             </div>
         </aside>
 
         <!-- Main Workspace Area -->
-        <main class="pos-main-content">
+        <main class="pos-main-content" id="posMainContent">
             {% block content %}
             {% endblock %}
         </main>

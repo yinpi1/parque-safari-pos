@@ -1,36 +1,108 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block content %}
 <div class="container-fluid px-0">
-    <!-- Header KDS -->
-    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
-        <div>
-            <div class="d-flex align-items-center gap-3">
-                <div class="p-2 rounded bg-danger text-white fs-3">
-                    <i class="bi bi-fire"></i>
+    <!-- Header KDS Minimalista & Métricas Clave -->
+    <div class="pos-view-header d-flex flex-wrap justify-content-between align-items-center mb-3 pb-3">
+        <div class="d-flex align-items-center gap-3">
+            <div class="pos-header-icon bg-danger bg-opacity-20 text-danger">
+                <i class="bi bi-fire"></i>
+            </div>
+            <div>
+                <div class="d-flex align-items-center gap-2">
+                    <h2 class="pos-view-title mb-0">Cocina KDS (Kitchen Display System)</h2>
+                    <span class="badge bg-danger bg-opacity-25 text-danger font-monospace px-2 py-1">PANTALLA TÁCTIL</span>
                 </div>
-                <div>
-                    <h2 class="fw-bold mb-0 text-white">Cocina KDS (Kitchen Display System)</h2>
-                    <p class="text-secondary mb-0">Pantalla táctil de comandas calientes &bull; Parque Safari</p>
-                </div>
+                <p class="pos-view-subtitle mb-0">Comandas en vivo, control de tiempos de espera y despacho rápido</p>
             </div>
         </div>
-        <div class="d-flex gap-3 align-items-center">
-            <div class="d-flex gap-2">
-                <span class="badge bg-danger p-2 fs-6">Pendientes: {{ total_pendientes }}</span>
-                <span class="badge bg-warning text-dark p-2 fs-6">En Preparación: {{ total_en_prep }}</span>
-                <span class="badge bg-success p-2 fs-6">Preparados: {{ total_preparados }}</span>
+
+        <div class="d-flex gap-2 align-items-center mt-2 mt-md-0">
+            <div class="pos-kds-mini-stats d-none d-lg-flex">
+                <div class="stat-item"><span class="label">Espera Promedio:</span> <strong class="val font-monospace text-warning">{{ tiempo_promedio }}</strong></div>
             </div>
-            <button class="btn btn-outline-warning fw-bold" onclick="location.reload()">
-                <i class="bi bi-arrow-clockwise"></i> Refrescar
+            <button class="btn btn-outline-secondary btn-sm fw-bold d-flex align-items-center gap-2" onclick="location.reload()" title="Refrescar comandas">
+                <i class="bi bi-arrow-clockwise"></i>
+                <span class="d-none d-sm-inline">Refrescar</span>
             </button>
         </div>
     </div>
 
+    <!-- BARRA DE FILTROS TÁCTIL PARA PEDIDOS (MVP 2.1) -->
+    <div class="pos-filter-toolbar mb-4">
+        <div class="row g-2 align-items-center">
+            <!-- Filtro de Estado: Pills Táctiles -->
+            <div class="col-12 col-xl-7">
+                <div class="pos-filter-pills" id="kdsStatusPills">
+                    <button class="filter-pill active" data-filter-status="todos">
+                        <span>Todos</span>
+                        <span class="pill-counter" id="countAll">{{ pedidos|length }}</span>
+                    </button>
+                    <button class="filter-pill pill-atrasado" data-filter-status="atrasados">
+                        <i class="bi bi-exclamation-triangle-fill text-danger me-1"></i>
+                        <span>Atrasados (>15m)</span>
+                        <span class="pill-counter" id="countAtrasados">0</span>
+                    </button>
+                    <button class="filter-pill" data-filter-status="Pendiente">
+                        <i class="bi bi-hourglass-split text-danger me-1"></i>
+                        <span>Pendientes</span>
+                        <span class="pill-counter" id="countPendientes">{{ total_pendientes }}</span>
+                    </button>
+                    <button class="filter-pill" data-filter-status="En preparación">
+                        <i class="bi bi-fire text-warning me-1"></i>
+                        <span>En Preparación</span>
+                        <span class="pill-counter" id="countPrep">{{ total_en_prep }}</span>
+                    </button>
+                    <button class="filter-pill" data-filter-status="Preparado">
+                        <i class="bi bi-check2-circle text-success me-1"></i>
+                        <span>Preparados</span>
+                        <span class="pill-counter" id="countListos">{{ total_preparados }}</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filtro de Ubicación (Menú Desplegable) -->
+            <div class="col-6 col-md-4 col-xl-2">
+                <div class="pos-select-wrapper">
+                    <select class="form-select pos-filter-select" id="kdsLocationFilter">
+                        <option value="todas">📍 Todas las ubicaciones</option>
+                        <option value="MESA">🍽️ Solo Mesas</option>
+                        <option value="BAR">🍸 Solo Barra / Retiro</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Buscador en Vivo Táctil -->
+            <div class="col-6 col-md-5 col-xl-2">
+                <div class="pos-filter-search">
+                    <i class="bi bi-search search-icon"></i>
+                    <input type="text" id="kdsSearchInput" class="form-control" placeholder="Buscar pedido, mesa, plato...">
+                </div>
+            </div>
+
+            <!-- Botón Limpiar Filtro -->
+            <div class="col-12 col-md-3 col-xl-1 text-end">
+                <button class="btn btn-outline-secondary btn-sm w-100 pos-btn-reset-filter" id="btnResetKdsFilters" title="Restablecer filtros">
+                    <i class="bi bi-funnel-fill"></i> Limpiar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Grid de Tarjetas KDS -->
-    <div class="pos-kds-grid">
+    <div class="pos-kds-grid" id="kdsGrid">
         {% for ped in pedidos %}
-        <div class="pos-kds-card {% if ped.urgencia == 'urgente' %}urgente{% elif ped.urgencia == 'advertencia' %}advertencia{% endif %}">
+        <div class="pos-kds-card {% if ped.urgencia == 'urgente' %}urgente{% elif ped.urgencia == 'advertencia' %}advertencia{% endif %}"
+             data-pedido-id="{{ ped.id }}"
+             data-venta="{{ ped.venta_num }}"
+             data-estado="{{ ped.estado }}"
+             data-urgencia="{{ ped.urgencia }}"
+             data-minutos="{{ ped.minutos_espera }}"
+             data-modalidad="{{ ped.modalidad }}"
+             data-ubicacion="{{ ped.ubicacion }}"
+             data-mozo="{{ ped.mozo }}"
+             data-search-text="{{ ped.id }} {{ ped.venta_num }} {{ ped.ubicacion }} {{ ped.mozo }} {% for p in ped.productos %}{{ p.nombre }} {{ p.nota }} {% endfor %} {{ ped.comentarios }}">
             
             <!-- Cabecera de la Comanda -->
             <div class="pos-kds-header">
@@ -44,12 +116,16 @@
             </div>
 
             <!-- Datos de Ubicación y Tiempos -->
-            <div class="px-3 py-2 bg-dark d-flex justify-content-between align-items-center border-bottom border-secondary">
+            <div class="px-3 py-2 pos-kds-meta d-flex justify-content-between align-items-center">
                 <div class="fw-bold text-warning fs-6">
                     <i class="bi bi-geo-alt-fill me-1"></i> {{ ped.ubicacion }}
+                    <small class="text-secondary fw-normal ms-2 d-none d-sm-inline">({{ ped.mozo }})</small>
                 </div>
-                <div class="text-secondary small font-monospace">
-                    <i class="bi bi-clock me-1"></i> {{ ped.hora }} (Hace {{ ped.minutos_espera }} min)
+                <div class="text-secondary small font-monospace d-flex align-items-center gap-1">
+                    <i class="bi bi-clock me-1"></i> {{ ped.hora }}
+                    <span class="badge {% if ped.minutos_espera >= 25 %}bg-danger text-white{% elif ped.minutos_espera >= 15 %}bg-warning text-dark{% else %}bg-secondary text-light{% endif %} font-monospace">
+                        {{ ped.minutos_espera }} min
+                    </span>
                 </div>
             </div>
 
@@ -59,7 +135,7 @@
                 {% for prod in ped.productos %}
                 <div class="pos-kds-item">
                     <div class="pos-kds-item-qty">{{ prod.cant }}</div>
-                    <div>
+                    <div class="flex-grow-1">
                         <div class="fw-bold text-white fs-6">{{ prod.nombre }}</div>
                         {% if prod.nota %}
                         <div class="pos-kds-item-note">
@@ -73,8 +149,8 @@
                 <!-- Comentarios del Cliente / Garzón -->
                 {% if ped.comentarios %}
                 <div class="pos-kds-notes-box">
-                    <i class="bi bi-chat-quote-fill me-1"></i>
-                    <strong>COMENTARIO GARZÓN:</strong> {{ ped.comentarios }}
+                    <i class="bi bi-chat-quote-fill me-1 text-warning"></i>
+                    <strong>NOTA SERVICIO:</strong> {{ ped.comentarios }}
                 </div>
                 {% endif %}
             </div>
@@ -99,5 +175,130 @@
         </div>
         {% endfor %}
     </div>
+
+    <!-- Empty State: cuando no hay resultados para el filtro seleccionado -->
+    <div class="pos-empty-filter-state" id="kdsEmptyState" style="display: none;">
+        <div class="empty-icon text-secondary">
+            <i class="bi bi-funnel"></i>
+        </div>
+        <h4 class="fw-bold text-white mb-2">No hay comandas que coincidan con el filtro</h4>
+        <p class="text-secondary mb-3">Intenta seleccionando otro estado, limpiando el texto de búsqueda o cambiando la ubicación.</p>
+        <button class="btn btn-warning fw-bold px-4" onclick="resetKdsFilters()">
+            <i class="bi bi-arrow-counterclockwise me-1"></i> Restablecer Filtros
+        </button>
+    </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        initKdsOrderFilter();
+    });
+
+    function initKdsOrderFilter() {
+        const pills = document.querySelectorAll('#kdsStatusPills .filter-pill');
+        const locSelect = document.getElementById('kdsLocationFilter');
+        const searchInput = document.getElementById('kdsSearchInput');
+        const btnReset = document.getElementById('btnResetKdsFilters');
+        const cards = document.querySelectorAll('#kdsGrid .pos-kds-card');
+        const emptyState = document.getElementById('kdsEmptyState');
+
+        // Calcular conteo de atrasados (>15 min o urgencia alta)
+        let atrasadosCount = 0;
+        cards.forEach(card => {
+            const min = parseInt(card.dataset.minutos || '0');
+            const urg = card.dataset.urgencia;
+            if ((min >= 15 || urg === 'urgente' || urg === 'advertencia') && card.dataset.estado !== 'Preparado') {
+                atrasadosCount++;
+            }
+        });
+        const countAtrasadosEl = document.getElementById('countAtrasados');
+        if (countAtrasadosEl) countAtrasadosEl.textContent = atrasadosCount;
+
+        let currentStatusFilter = 'todos';
+
+        function applyFilter() {
+            const selectedLocation = locSelect ? locSelect.value : 'todas';
+            const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+            let visibleCount = 0;
+
+            cards.forEach(card => {
+                const cardEstado = card.dataset.estado;
+                const cardModalidad = card.dataset.modalidad;
+                const cardMinutos = parseInt(card.dataset.minutos || '0');
+                const cardUrgencia = card.dataset.urgencia;
+                const cardText = (card.dataset.searchText || '').toLowerCase();
+
+                // 1. Filtro de Estado
+                let matchesStatus = true;
+                if (currentStatusFilter === 'atrasados') {
+                    matchesStatus = (cardMinutos >= 15 || cardUrgencia === 'urgente' || cardUrgencia === 'advertencia') && cardEstado !== 'Preparado';
+                } else if (currentStatusFilter !== 'todos') {
+                    matchesStatus = cardEstado === currentStatusFilter;
+                }
+
+                // 2. Filtro de Ubicación
+                let matchesLocation = true;
+                if (selectedLocation !== 'todas') {
+                    matchesLocation = cardModalidad === selectedLocation;
+                }
+
+                // 3. Filtro de Búsqueda
+                let matchesSearch = true;
+                if (query.length > 0) {
+                    matchesSearch = cardText.includes(query);
+                }
+
+                if (matchesStatus && matchesLocation && matchesSearch) {
+                    card.style.display = 'flex';
+                    visibleCount++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            if (emptyState) {
+                emptyState.style.display = visibleCount === 0 ? 'block' : 'none';
+            }
+        }
+
+        // Event listeners para pills
+        pills.forEach(pill => {
+            pill.addEventListener('click', () => {
+                pills.forEach(p => p.classList.remove('active'));
+                pill.classList.add('active');
+                currentStatusFilter = pill.dataset.filterStatus;
+                applyFilter();
+            });
+        });
+
+        // Event listener para select de ubicación
+        if (locSelect) {
+            locSelect.addEventListener('change', applyFilter);
+        }
+
+        // Event listener para búsqueda
+        if (searchInput) {
+            searchInput.addEventListener('input', applyFilter);
+        }
+
+        // Botón reset
+        if (btnReset) {
+            btnReset.addEventListener('click', () => {
+                window.resetKdsFilters();
+            });
+        }
+
+        window.resetKdsFilters = function() {
+            currentStatusFilter = 'todos';
+            pills.forEach(p => p.classList.remove('active'));
+            document.querySelector('#kdsStatusPills [data-filter-status="todos"]')?.classList.add('active');
+            if (locSelect) locSelect.value = 'todas';
+            if (searchInput) searchInput.value = '';
+            applyFilter();
+        };
+    }
+</script>
 {% endblock %}

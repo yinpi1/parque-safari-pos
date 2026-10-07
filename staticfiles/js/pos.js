@@ -1,21 +1,30 @@
 /**
- * PARQUE SAFARI - SISTEMA WEB DE VENTAS POS
- * Interactividad táctil y motor de carrito demostrativo
+ * PARQUE SAFARI - SISTEMA WEB DE VENTAS POS (MVP 2.1)
+ * Interactividad táctil, gestión de roles en vivo, menús desplegables y motor POS
  */
 
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Reloj en tiempo real en la barra superior
     initLiveClock();
 
-    // 2. Si estamos en la pantalla del POS, inicializar el motor de venta
+    // 2. Control de Menús Desplegables / Acordeón en la Sidebar
+    initSidebarAccordion();
+
+    // 3. Botón de colapso de sidebar (Modo Pantalla Completa Tablet)
+    initSidebarToggle();
+
+    // 4. Gestión dinámica de Roles y Permisos (MVP 2.1)
+    initRoleManagement();
+
+    // 5. Si estamos en la pantalla del POS, inicializar el motor de venta
     if (document.getElementById('posCartItems')) {
         initPosEngine();
     }
 
-    // 3. Inicializar interactividad de Cocina KDS y Bar BDS si existen
+    // 6. Inicializar interactividad de Cocina KDS y Bar BDS si existen
     initKdsInteractive();
 
-    // 4. Inicializar filtros de tablas y reportes
+    // 7. Inicializar filtros de tablas y reportes
     initSearchFilters();
 });
 
@@ -39,7 +48,181 @@ function initLiveClock() {
 }
 
 /* ==========================================================================
-   2. MOTOR DE CARRITO POS (Simulación Táctil Interactiva)
+   2. CONTROL DE MENÚS DESPLEGABLES (ACORDEÓN SIDEBAR)
+   ========================================================================== */
+function initSidebarAccordion() {
+    const headers = document.querySelectorAll('.pos-nav-accordion-header');
+    headers.forEach(header => {
+        header.addEventListener('click', () => {
+            const groupKey = header.dataset.group;
+            const collapseEl = document.getElementById(`group-${groupKey}`);
+            if (!collapseEl) return;
+
+            const isOpen = collapseEl.classList.contains('show');
+            if (isOpen) {
+                collapseEl.classList.remove('show');
+                header.classList.remove('expanded');
+            } else {
+                collapseEl.classList.add('show');
+                header.classList.add('expanded');
+            }
+        });
+
+        // Marcar expanded si ya viene con 'show' desde el template
+        const groupKey = header.dataset.group;
+        const collapseEl = document.getElementById(`group-${groupKey}`);
+        if (collapseEl && collapseEl.classList.contains('show')) {
+            header.classList.add('expanded');
+        }
+    });
+}
+
+/* ==========================================================================
+   3. BOTÓN COLAPSO DE SIDEBAR (MODO PANTALLA COMPLETA TABLET)
+   ========================================================================== */
+function initSidebarToggle() {
+    const toggleBtn = document.getElementById('btnToggleSidebar');
+    if (!toggleBtn) return;
+
+    // Restaurar preferencia guardada
+    const isCollapsed = localStorage.getItem('safari_sidebar_collapsed') === 'true';
+    if (isCollapsed) {
+        document.body.classList.add('sidebar-collapsed');
+    }
+
+    toggleBtn.addEventListener('click', () => {
+        document.body.classList.toggle('sidebar-collapsed');
+        const nowCollapsed = document.body.classList.contains('sidebar-collapsed');
+        localStorage.setItem('safari_sidebar_collapsed', nowCollapsed);
+    });
+}
+
+/* ==========================================================================
+   4. GESTIÓN Y SIMULACIÓN DE ROLES (MVP 2.1)
+   ========================================================================== */
+const ROLES_CONFIG = {
+    cajero: {
+        username: 'jvalenzuela',
+        roleKey: 'cajero',
+        nombre: 'Jean Valenzuela',
+        cargo: 'Cajero &bull; Caja 01',
+        cargoRaw: 'Cajero',
+        avatarText: 'JV',
+        avatarBg: '#10b981',
+        dotColor: '#10b981',
+        focusRole: 'cajero',
+        focusDesc: 'Ventas POS & Mesas',
+        badgeBg: 'rgba(16, 185, 129, 0.2)',
+        badgeColor: '#34d399'
+    },
+    admin: {
+        username: 'cmendoza',
+        roleKey: 'admin',
+        nombre: 'Carlos Mendoza',
+        cargo: 'Administrador &bull; Total',
+        cargoRaw: 'Administrador',
+        avatarText: 'CM',
+        avatarBg: '#8b5cf6',
+        dotColor: '#c084fc',
+        focusRole: 'admin',
+        focusDesc: 'Gestión Total & Reportes',
+        badgeBg: 'rgba(168, 85, 247, 0.2)',
+        badgeColor: '#c084fc'
+    },
+    cocina: {
+        username: 'mtorres',
+        roleKey: 'cocina',
+        nombre: 'Matías Torres',
+        cargo: 'Cocinero Jefe &bull; KDS',
+        cargoRaw: 'Cocina KDS',
+        avatarText: 'MT',
+        avatarBg: '#f97316',
+        dotColor: '#fb923c',
+        focusRole: 'cocina',
+        focusDesc: 'Comandas de Producción',
+        badgeBg: 'rgba(249, 115, 22, 0.2)',
+        badgeColor: '#fb923c'
+    },
+    bar: {
+        username: 'pgomez',
+        roleKey: 'bar',
+        nombre: 'Patricia Gómez',
+        cargo: 'Barman &bull; BDS',
+        cargoRaw: 'Bar BDS',
+        avatarText: 'PG',
+        avatarBg: '#06b6d4',
+        dotColor: '#22d3ee',
+        focusRole: 'bar',
+        focusDesc: 'Despacho de Barra',
+        badgeBg: 'rgba(6, 182, 212, 0.2)',
+        badgeColor: '#22d3ee'
+    }
+};
+
+window.setGlobalRole = function(roleKey) {
+    const config = ROLES_CONFIG[roleKey];
+    if (!config) return;
+
+    // 1. Guardar en localStorage
+    localStorage.setItem('safari_active_role', JSON.stringify(config));
+
+    // 2. Actualizar Topbar
+    const avatarEl = document.getElementById('navAvatar');
+    const nameEl = document.getElementById('navUserName');
+    const cargoEl = document.getElementById('navRoleCargo');
+    const dotEl = document.getElementById('rolePillDot');
+
+    if (avatarEl) {
+        avatarEl.textContent = config.avatarText;
+        avatarEl.style.backgroundColor = config.avatarBg;
+    }
+    if (nameEl) nameEl.textContent = config.nombre;
+    if (cargoEl) cargoEl.innerHTML = config.cargo;
+    if (dotEl) dotEl.style.backgroundColor = config.dotColor;
+
+    // 3. Actualizar banner de sidebar
+    const sideTitle = document.getElementById('sidebarRoleTitle');
+    const sideBadge = document.getElementById('sidebarRoleFocusBadge');
+    if (sideTitle) sideTitle.textContent = `ROL: ${config.cargoRaw.toUpperCase()}`;
+    if (sideBadge) {
+        sideBadge.textContent = `FOCO: ${config.focusDesc.toUpperCase()}`;
+        sideBadge.style.background = config.badgeBg;
+        sideBadge.style.color = config.badgeColor;
+    }
+
+    // 4. Actualizar etiquetas de FOCO en los enlaces de la sidebar
+    document.querySelectorAll('.pos-nav-link').forEach(link => {
+        const linkFocus = link.dataset.focusRole;
+        const tag = link.querySelector('.role-focus-tag');
+        if (tag) {
+            if (linkFocus === roleKey) {
+                tag.classList.remove('d-none');
+                tag.style.background = config.badgeBg;
+                tag.style.color = config.badgeColor;
+                tag.style.borderColor = config.badgeColor;
+            } else {
+                tag.classList.add('d-none');
+            }
+        }
+    });
+};
+
+function initRoleManagement() {
+    const saved = localStorage.getItem('safari_active_role');
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            const key = parsed.roleKey || 'cajero';
+            window.setGlobalRole(key);
+            return;
+        } catch(e) {}
+    }
+    // Default Cajero
+    window.setGlobalRole('cajero');
+}
+
+/* ==========================================================================
+   5. MOTOR DE CARRITO POS (Simulación Táctil Interactiva)
    ========================================================================== */
 let cart = [];
 let modalidad = 'BAR'; // 'BAR' o 'MESA'
@@ -166,19 +349,15 @@ function initPosEngine() {
     const btnFinalizarVenta = document.getElementById('btnFinalizarVenta');
     if (btnFinalizarVenta) {
         btnFinalizarVenta.addEventListener('click', () => {
-            // Cerrar modal confirmación
             const modalConfEl = document.getElementById('modalConfirmarVenta');
             if (modalConfEl && typeof bootstrap !== 'undefined') {
                 const modalConf = bootstrap.Modal.getInstance(modalConfEl);
                 if (modalConf) modalConf.hide();
             }
-
-            // Abrir modal de ticket y comandas
             showTicketModal();
         });
     }
 
-    // Render inicial
     renderCart();
 }
 
@@ -187,10 +366,7 @@ function addToCart(item) {
     if (existing) {
         existing.cantidad += 1;
     } else {
-        cart.push({
-            ...item,
-            cantidad: 1
-        });
+        cart.push({ ...item, cantidad: 1 });
     }
     renderCart();
 }
@@ -220,7 +396,6 @@ function renderCart() {
     const subtotalEl = document.getElementById('cartSubtotal');
     const totalEl = document.getElementById('cartTotal');
     const countBadge = document.getElementById('cartItemsCount');
-    const notesInput = document.getElementById('orderNotes');
 
     if (!container) return;
 
@@ -228,8 +403,8 @@ function renderCart() {
         container.innerHTML = `
             <div class="pos-cart-empty">
                 <i class="bi bi-cart-x"></i>
-                <p class="mb-0 fw-semibold">Carrito de venta vacío</p>
-                <small class="text-secondary">Toque los productos para agregarlos al pedido</small>
+                <p class="mb-0 fw-semibold small">Carrito vacío</p>
+                <small class="text-secondary" style="font-size: 0.72rem;">Toque productos del catálogo para agregar</small>
             </div>
         `;
         if (subtotalEl) subtotalEl.textContent = '$0';
@@ -352,7 +527,6 @@ function showTicketModal() {
     const ticketModalEl = document.getElementById('modalTicketEmision');
     if (!ticketModalEl || typeof bootstrap === 'undefined') return;
 
-    // Calcular totales y generar comandas
     const folioNum = Math.floor(1000 + Math.random() * 9000);
     const dateStr = new Date().toLocaleDateString('es-CL');
     const timeStr = new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
@@ -370,7 +544,6 @@ function showTicketModal() {
         const itemSub = item.precio * item.cantidad;
         total += itemSub;
 
-        // Fila para el ticket de venta del cliente
         ticketItemsHtml += `
             <div class="thermal-row">
                 <span>${item.cantidad}x ${item.nombre.substring(0, 20)}</span>
@@ -378,28 +551,25 @@ function showTicketModal() {
             </div>
         `;
 
-        // Si va a cocina
         if (item.destino === 'Cocina') {
             hasCocina = true;
             cocinaItemsHtml += `
-                <div class="thermal-row fw-bold" style="font-size: 1rem;">
+                <div class="thermal-row fw-bold" style="font-size: 0.95rem;">
                     <span>[${item.cantidad}] ${item.nombre}</span>
                 </div>
             `;
         }
 
-        // Si va a bar
         if (item.destino === 'Bar') {
             hasBar = true;
             barItemsHtml += `
-                <div class="thermal-row fw-bold" style="font-size: 1rem;">
+                <div class="thermal-row fw-bold" style="font-size: 0.95rem;">
                     <span>[${item.cantidad}] ${item.nombre}</span>
                 </div>
             `;
         }
     });
 
-    // Inyectar en Ticket Cliente
     const ticketFolioEl = document.getElementById('ticketFolio');
     const ticketDateTimeEl = document.getElementById('ticketDateTime');
     const ticketItemsContainer = document.getElementById('ticketItemsContainer');
@@ -412,7 +582,6 @@ function showTicketModal() {
     if (ticketTotalEl) ticketTotalEl.textContent = formatCLP(total);
     if (ticketModEl) ticketModEl.textContent = modalidad === 'MESA' ? mesaSeleccionada : 'BAR / RETIRO';
 
-    // Inyectar en Comanda Cocina
     const comandaCocinaWrapper = document.getElementById('comandaCocinaSlip');
     if (comandaCocinaWrapper) {
         if (hasCocina) {
@@ -426,7 +595,6 @@ function showTicketModal() {
         }
     }
 
-    // Inyectar en Comanda Bar
     const comandaBarWrapper = document.getElementById('comandaBarSlip');
     if (comandaBarWrapper) {
         if (hasBar) {
@@ -440,7 +608,7 @@ function showTicketModal() {
         }
     }
 
-    // Vaciar carrito para la siguiente venta
+    // Vaciar carrito
     cart = [];
     if (document.getElementById('orderNotes')) document.getElementById('orderNotes').value = '';
     renderCart();
@@ -450,7 +618,7 @@ function showTicketModal() {
 }
 
 /* ==========================================================================
-   3. COCINA KDS & BAR BDS (Simulación de Estados)
+   6. COCINA KDS & BAR BDS (Simulación de Estados)
    ========================================================================== */
 function initKdsInteractive() {
     const kdsButtons = document.querySelectorAll('.kds-action-btn');
@@ -466,24 +634,28 @@ function initKdsInteractive() {
                     badge.textContent = 'En preparación';
                     badge.className = 'badge bg-warning text-dark pos-kds-badge';
                 }
-                btn.textContent = 'Marcar como Preparado';
+                btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i> Marcar como Preparado';
                 btn.className = 'btn btn-success fw-bold w-100 kds-action-btn';
                 btn.dataset.action = 'completar';
+                if (card) card.dataset.estado = 'En preparación';
             } else if (action === 'completar') {
                 if (badge) {
                     badge.textContent = 'Preparado';
                     badge.className = 'badge bg-success text-white pos-kds-badge';
                 }
-                btn.textContent = 'Entregado ✓';
+                btn.innerHTML = '<i class="bi bi-check-all me-1"></i> Preparado (En pasaplatos)';
                 btn.className = 'btn btn-secondary disabled w-100';
-                card.style.opacity = '0.6';
+                if (card) {
+                    card.style.opacity = '0.65';
+                    card.dataset.estado = 'Preparado';
+                }
             }
         });
     });
 }
 
 /* ==========================================================================
-   4. FILTROS EN TABLAS Y REPORTES
+   7. FILTROS EN TABLAS Y REPORTES
    ========================================================================== */
 function initSearchFilters() {
     const genericSearch = document.getElementById('genericTableSearch');

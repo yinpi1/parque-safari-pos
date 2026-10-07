@@ -1,69 +1,110 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block content %}
 <div class="container-fluid px-0">
-    <!-- Header -->
-    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
-        <div>
-            <h2 class="fw-bold mb-1 text-white">Mapa de Mesas y Salón</h2>
-            <p class="text-secondary mb-0">Gestión de ocupación, tiempos de servicio y reasignación de comensales.</p>
+    <!-- Header Minimalista -->
+    <div class="pos-view-header d-flex flex-wrap justify-content-between align-items-center mb-3 pb-3">
+        <div class="d-flex align-items-center gap-3">
+            <div class="pos-header-icon bg-info bg-opacity-20 text-info">
+                <i class="bi bi-layout-text-window-reverse"></i>
+            </div>
+            <div>
+                <h2 class="pos-view-title mb-0">Mapa de Mesas y Salón</h2>
+                <p class="pos-view-subtitle mb-0">Gestión de ocupación, tiempos de servicio y reasignación de comensales</p>
+            </div>
         </div>
-        <div class="d-flex gap-2">
-            <button class="btn btn-outline-info fw-bold d-flex align-items-center gap-2" onclick="location.reload()">
+        <div class="d-flex gap-2 mt-2 mt-md-0">
+            <button class="btn btn-outline-secondary btn-sm fw-bold d-flex align-items-center gap-2" onclick="location.reload()" title="Refrescar estado de mesas">
                 <i class="bi bi-arrow-clockwise"></i>
-                <span>Refrescar Salón</span>
+                <span class="d-none d-sm-inline">Refrescar</span>
             </button>
-            <a href="{% url 'pos' %}" class="btn btn-warning fw-bold d-flex align-items-center gap-2">
+            <a href="{% url 'pos' %}" class="btn btn-warning btn-sm fw-bold d-flex align-items-center gap-2">
                 <i class="bi bi-cart-plus-fill"></i>
                 <span>Tomar Pedido POS</span>
             </a>
         </div>
     </div>
 
-    <!-- Indicadores de Salón -->
-    <div class="row g-3 mb-4">
-        <div class="col-md-3">
-            <div class="p-3 bg-dark rounded-3 border border-secondary d-flex justify-content-between align-items-center">
+    <!-- Indicadores de Salón (Diseño limpio y moderno) -->
+    <div class="row g-2 mb-3">
+        <div class="col-6 col-md-3">
+            <div class="p-2 px-3 rounded-3 border border-secondary bg-dark d-flex justify-content-between align-items-center">
                 <div>
-                    <span class="text-secondary small fw-bold">TOTAL MESAS</span>
-                    <h3 class="fw-bold text-white mb-0">{{ total_mesas }}</h3>
+                    <span class="text-secondary small fw-bold" style="font-size: 0.72rem;">TOTAL MESAS</span>
+                    <h4 class="fw-bold text-white mb-0">{{ total_mesas }}</h4>
                 </div>
-                <i class="bi bi-table fs-1 text-primary"></i>
+                <i class="bi bi-table fs-3 text-secondary"></i>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="p-3 bg-dark rounded-3 border border-danger border-opacity-50 d-flex justify-content-between align-items-center">
+        <div class="col-6 col-md-3">
+            <div class="p-2 px-3 rounded-3 border border-danger border-opacity-40 bg-danger bg-opacity-10 d-flex justify-content-between align-items-center">
                 <div>
-                    <span class="text-danger small fw-bold">MESAS OCUPADAS</span>
-                    <h3 class="fw-bold text-danger mb-0">{{ mesas_ocupadas }}</h3>
+                    <span class="text-danger small fw-bold" style="font-size: 0.72rem;">MESAS OCUPADAS</span>
+                    <h4 class="fw-bold text-danger mb-0">{{ mesas_ocupadas }}</h4>
                 </div>
-                <i class="bi bi-person-fill-lock fs-1 text-danger"></i>
+                <i class="bi bi-person-fill-lock fs-3 text-danger"></i>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="p-3 bg-dark rounded-3 border border-success border-opacity-50 d-flex justify-content-between align-items-center">
+        <div class="col-6 col-md-3">
+            <div class="p-2 px-3 rounded-3 border border-success border-opacity-40 bg-success bg-opacity-10 d-flex justify-content-between align-items-center">
                 <div>
-                    <span class="text-success small fw-bold">MESAS DISPONIBLES</span>
-                    <h3 class="fw-bold text-success mb-0">{{ mesas_disponibles }}</h3>
+                    <span class="text-success small fw-bold" style="font-size: 0.72rem;">MESAS DISPONIBLES</span>
+                    <h4 class="fw-bold text-success mb-0">{{ mesas_disponibles }}</h4>
                 </div>
-                <i class="bi bi-check-circle-fill fs-1 text-success"></i>
+                <i class="bi bi-check-circle-fill fs-3 text-success"></i>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="p-3 bg-dark rounded-3 border border-secondary d-flex justify-content-between align-items-center">
+        <div class="col-6 col-md-3">
+            <div class="p-2 px-3 rounded-3 border border-secondary bg-dark d-flex justify-content-between align-items-center">
                 <div>
-                    <span class="text-secondary small fw-bold">COMENSALES EN SALÓN</span>
-                    <h3 class="fw-bold text-warning mb-0">{{ total_comensales }} pers.</h3>
+                    <span class="text-secondary small fw-bold" style="font-size: 0.72rem;">COMENSALES</span>
+                    <h4 class="fw-bold text-warning mb-0">{{ total_comensales }} pers.</h4>
                 </div>
-                <i class="bi bi-people-fill fs-1 text-warning"></i>
+                <i class="bi bi-people-fill fs-3 text-warning"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barra de Filtros Táctil de Mesas -->
+    <div class="pos-filter-toolbar mb-3">
+        <div class="row g-2 align-items-center">
+            <div class="col-12 col-md-6 col-lg-7">
+                <div class="pos-filter-pills" id="mesasPills">
+                    <button class="filter-pill active" data-filter-mesa="todas">
+                        <span>Todas</span>
+                        <span class="pill-counter">{{ mesas|length }}</span>
+                    </button>
+                    <button class="filter-pill" data-filter-mesa="Ocupada">
+                        <i class="bi bi-circle-fill text-danger me-1" style="font-size: 0.55rem;"></i>
+                        <span>Ocupadas</span>
+                        <span class="pill-counter">{{ mesas_ocupadas }}</span>
+                    </button>
+                    <button class="filter-pill" data-filter-mesa="Disponible">
+                        <i class="bi bi-circle-fill text-success me-1" style="font-size: 0.55rem;"></i>
+                        <span>Disponibles</span>
+                        <span class="pill-counter">{{ mesas_disponibles }}</span>
+                    </button>
+                </div>
+            </div>
+            <div class="col-12 col-md-6 col-lg-5">
+                <div class="pos-filter-search">
+                    <i class="bi bi-search search-icon"></i>
+                    <input type="text" id="mesasSearchInput" class="form-control" placeholder="Buscar mesa #, zona o garzón...">
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Mapa / Grid de Tarjetas de Mesas -->
-    <div class="pos-table-grid">
+    <div class="pos-table-grid" id="mesasGrid">
         {% for m in mesas %}
         <div class="pos-table-card {% if m.estado == 'Ocupada' %}ocupada{% else %}disponible{% endif %}"
+             data-mesa-num="{{ m.numero }}"
+             data-estado="{{ m.estado }}"
+             data-zona="{{ m.zona }}"
+             data-mozo="{{ m.mozo }}"
+             data-search-text="{{ m.numero }} {{ m.zona }} {{ m.mozo }} {{ m.estado }}"
              data-bs-toggle="modal" 
              data-bs-target="#modalDetalleMesa"
              onclick="loadMesaModal('{{ m.numero }}', '{{ m.estado }}', '{{ m.zona }}', '{{ m.capacidad }}', '{{ m.inicio }}', '{{ m.tiempo_transcurrido }}', '{{ m.consumo_actual }}', '{{ m.mozo }}', '{{ m.comensales }}')">
@@ -111,9 +152,7 @@
     </div>
 </div>
 
-<!-- ==========================================================================
-     MODAL DE DETALLE Y REASIGNACIÓN DE MESA
-     ========================================================================== -->
+<!-- MODAL DE DETALLE Y REASIGNACIÓN DE MESA -->
 <div class="modal fade" id="modalDetalleMesa" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-md modal-dialog-centered">
         <div class="modal-content">
@@ -128,45 +167,45 @@
                 <div class="d-flex justify-content-between align-items-center p-3 rounded-3 bg-dark border border-secondary mb-3">
                     <div>
                         <div class="text-secondary small fw-bold">ESTADO ACTUAL:</div>
-                        <span class="fs-5 fw-bold" id="modalMesaEstado">Ocupada</span>
+                        <div id="modalMesaEstado" class="fs-5 fw-bold"></div>
                     </div>
                     <div class="text-end">
-                        <div class="text-secondary small fw-bold">CONSUMO ACUMULADO:</div>
-                        <span class="fs-4 fw-bold font-monospace text-warning" id="modalMesaConsumo">$0</span>
+                        <div class="text-secondary small fw-bold">TOTAL CONSUMO:</div>
+                        <div id="modalMesaConsumo" class="fs-4 fw-bold font-monospace text-warning"></div>
                     </div>
                 </div>
 
-                <div class="row g-2 mb-3 small">
+                <div class="row g-2 mb-3">
                     <div class="col-6">
-                        <div class="p-2 bg-dark rounded border border-secondary">
-                            <span class="text-secondary d-block">ZONA:</span>
-                            <strong class="text-light" id="modalMesaZona">-</strong>
+                        <div class="p-2 rounded bg-dark border border-secondary">
+                            <span class="text-secondary small d-block">ZONA</span>
+                            <strong id="modalMesaZona" class="text-white"></strong>
                         </div>
                     </div>
                     <div class="col-6">
-                        <div class="p-2 bg-dark rounded border border-secondary">
-                            <span class="text-secondary d-block">GARZÓN / VENDEDOR:</span>
-                            <strong class="text-light" id="modalMesaMozo">-</strong>
+                        <div class="p-2 rounded bg-dark border border-secondary">
+                            <span class="text-secondary small d-block">GARZÓN ASIGNADO</span>
+                            <strong id="modalMesaMozo" class="text-white"></strong>
                         </div>
                     </div>
                     <div class="col-6">
-                        <div class="p-2 bg-dark rounded border border-secondary">
-                            <span class="text-secondary d-block">HORA APERTURA:</span>
-                            <strong class="text-light" id="modalMesaInicio">-</strong>
+                        <div class="p-2 rounded bg-dark border border-secondary">
+                            <span class="text-secondary small d-block">HORA INICIO</span>
+                            <strong id="modalMesaInicio" class="text-white font-monospace"></strong>
                         </div>
                     </div>
                     <div class="col-6">
-                        <div class="p-2 bg-dark rounded border border-secondary">
-                            <span class="text-secondary d-block">TIEMPO TRANSCURRIDO:</span>
-                            <strong class="text-danger" id="modalMesaTiempo">-</strong>
+                        <div class="p-2 rounded bg-dark border border-secondary">
+                            <span class="text-secondary small d-block">TIEMPO TRANSCURRIDO</span>
+                            <strong id="modalMesaTiempo" class="text-danger font-monospace"></strong>
                         </div>
                     </div>
                 </div>
 
-                <!-- Formulario simulado de Reasignación de Mesa -->
-                <div class="p-3 bg-dark rounded-3 border border-secondary mb-3">
-                    <label class="form-label small text-warning fw-bold d-flex align-items-center gap-1">
-                        <i class="bi bi-arrow-left-right"></i>
+                <!-- Reasignación de Mesa -->
+                <div class="p-3 rounded-3 bg-dark border border-secondary">
+                    <label class="form-label text-white small fw-bold mb-2 d-flex align-items-center gap-2">
+                        <i class="bi bi-arrow-left-right text-warning"></i>
                         <span>REASIGNAR A OTRA MESA (Simulado):</span>
                     </label>
                     <div class="input-group">
@@ -210,5 +249,45 @@
         document.getElementById('modalMesaInicio').textContent = inicio;
         document.getElementById('modalMesaTiempo').textContent = tiempo;
     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const pills = document.querySelectorAll('#mesasPills .filter-pill');
+        const searchInput = document.getElementById('mesasSearchInput');
+        const cards = document.querySelectorAll('#mesasGrid .pos-table-card');
+
+        let currentFilter = 'todas';
+
+        function applyFilter() {
+            const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+            cards.forEach(card => {
+                const cardEstado = card.dataset.estado;
+                const cardText = (card.dataset.searchText || '').toLowerCase();
+
+                let matchesStatus = true;
+                if (currentFilter !== 'todas') {
+                    matchesStatus = cardEstado === currentFilter;
+                }
+
+                let matchesSearch = true;
+                if (query.length > 0) {
+                    matchesSearch = cardText.includes(query);
+                }
+
+                card.style.display = (matchesStatus && matchesSearch) ? 'block' : 'none';
+            });
+        }
+
+        pills.forEach(pill => {
+            pill.addEventListener('click', () => {
+                pills.forEach(p => p.classList.remove('active'));
+                pill.classList.add('active');
+                currentFilter = pill.dataset.filterMesa;
+                applyFilter();
+            });
+        });
+
+        if (searchInput) searchInput.addEventListener('input', applyFilter);
+    });
 </script>
 {% endblock %}

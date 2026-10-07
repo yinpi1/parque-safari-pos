@@ -1,9 +1,9 @@
 #  Sistema Web de Ventas POS — Parque Safari
 
 > **Proyecto Académico — Analista Programador**  
-> **Etapa 1: MVP Visual / Maqueta Completa y Navegable**
+> **Etapa 2: MVP 2.1 — Rediseño Minimalista, Menús Desplegables, Roles & Filtros Reactivos**
 
-Aplicación web desarrollada en **Django (MVT)** con diseño táctil optimizado para terminales POS y pantallas Full HD (1920x1080).
+Aplicación web desarrollada en **Django (MVT)** con diseño táctil optimizado para terminales POS y pantallas Full HD (1920x1080) y tablets táctiles. Incluye menús desplegables de acordeón, filtros de pedidos en tiempo real (Cocina KDS, Bar BDS y Mesas), selector de roles y permisos demostrativos con focos de área y modo de pantalla completa.
 
 ---
 
