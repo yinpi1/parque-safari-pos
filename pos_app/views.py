@@ -259,11 +259,30 @@ def reportes_view(request):
     return render(request, "reportes.html", context)
 
 def configuracion_view(request):
-    """Módulo de Configuración general del sistema POS."""
+    """Módulo de Configuración general del sistema POS con monitor de conexión a BD."""
+    from django.db import connection
+    db_engine = connection.vendor
+    db_name = connection.settings_dict.get('NAME', 'Desconocido')
+    db_host = connection.settings_dict.get('HOST', 'Local')
+
+    estado_bd = "Conectado"
+    detalles_bd = f"{db_engine.upper()} ({db_host if db_host else 'SQLite local'})"
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1;")
+            cursor.fetchone()
+    except Exception as e:
+        estado_bd = "Error de conexión"
+        detalles_bd = str(e)
+
     context = {
         "titulo": "Configuración del Sistema | Parque Safari",
         "usuario_actual": mock_data.USUARIOS[1],  # Carlos Mendoza (Admin)
         "config": mock_data.CONFIGURACION,
+        "db_estado": estado_bd,
+        "db_engine": db_engine,
+        "db_detalles": detalles_bd,
     }
     return render(request, "configuracion.html", context)
 
