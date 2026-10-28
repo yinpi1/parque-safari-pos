@@ -580,7 +580,21 @@ function showTicketModal() {
     if (ticketDateTimeEl) ticketDateTimeEl.textContent = `${dateStr} ${timeStr}`;
     if (ticketItemsContainer) ticketItemsContainer.innerHTML = ticketItemsHtml;
     if (ticketTotalEl) ticketTotalEl.textContent = formatCLP(total);
-    if (ticketModEl) ticketModEl.textContent = modalidad === 'MESA' ? mesaSeleccionada : 'BAR / RETIRO';
+    if (ticketModEl) ticketModEl.textContent = modalidad === 'MESA' ? `${mesaSeleccionada} (Boleta Diferida al Pago)` : 'BAR / RETIRO (Boleta Inmediata)';
+    
+    // Distinción de comprobante Semana 12
+    const slipTypeEl = document.querySelector('.thermal-slip-type');
+    if (slipTypeEl) {
+        if (modalidad === 'MESA') {
+            slipTypeEl.textContent = 'COMANDA PEDIDO MESA (BOLETA DIFERIDA)';
+            slipTypeEl.style.background = '#0284c7';
+            slipTypeEl.style.color = '#fff';
+        } else {
+            slipTypeEl.textContent = 'BOLETA ELECTRÓNICA DE VENTA (INMEDIATA)';
+            slipTypeEl.style.background = '#1e293b';
+            slipTypeEl.style.color = '#fff';
+        }
+    }
 
     const comandaCocinaWrapper = document.getElementById('comandaCocinaSlip');
     if (comandaCocinaWrapper) {

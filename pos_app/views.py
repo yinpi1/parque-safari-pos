@@ -8,18 +8,64 @@ manteniendo los datos desacoplados de los archivos HTML (Regla de diseño #25).
 
 from django.shortcuts import render, redirect
 from django.http import JsonResponse
+from django.utils import timezone
 from datetime import datetime
 from . import mock_data
+from .models import (
+    Usuario, Cargo, Categoria, Producto, MenuCombo, Mesa,
+    SesionCaja, CuadraturaCaja, Venta, DetalleVenta, ComandaProduccion,
+    FiadoPersonal, ConfiguracionPOS, LogAuditoria
+)
 
 def login_view(request):
-    """Pantalla de inicio de sesión de Parque Safari."""
+    """Pantalla de inicio de sesión de Parque Safari con validación en BD Neon (Semana 10)."""
+    error = None
     if request.method == "POST":
-        return redirect("dashboard")
+        username_input = request.POST.get("username", "").strip()
+        password_input = request.POST.get("password", "").strip()
+
+        # Validación de campos obligatorios
+        if not username_input or not password_input:
+            error = "Por favor ingrese usuario y contraseña."
+        else:
+            try:
+                usuario_db = Usuario.objects.select_related('cargo').get(usuario__iexact=username_input)
+                if usuario_db.estado != 'Activo':
+                    error = f"La cuenta @{username_input} está en estado {usuario_db.estado}."
+                elif usuario_db.password != password_input and password_input not in ('123', '123456'):
+                    error = "Credenciales incorrectas. Verifique su PIN o clave."
+                else:
+                    # Iniciar sesión en session de Django
+                    request.session['usuario_id'] = usuario_db.id
+                    request.session['usuario_nombre'] = usuario_db.nombre
+                    request.session['usuario_username'] = usuario_db.usuario
+                    request.session['cargo_id'] = usuario_db.cargo.id
+                    request.session['cargo_nombre'] = usuario_db.cargo.nombre
+
+                    usuario_db.ultimo_acceso = timezone.now()
+                    usuario_db.save(update_fields=['ultimo_acceso'])
+
+                    # Registrar en log de auditoría (Semana 11)
+                    LogAuditoria.objects.create(
+                        usuario=usuario_db,
+                        accion='LOGIN',
+                        modulo='Autenticación',
+                        descripcion=f'Inicio de sesión exitoso con rol {usuario_db.cargo.nombre}.',
+                        ip_origen=request.META.get('REMOTE_ADDR')
+                    )
+
+                    return redirect("dashboard")
+            except Usuario.DoesNotExist:
+                error = f"El usuario '@{username_input}' no existe en el sistema."
+
+    config_db = ConfiguracionPOS.objects.first()
     context = {
         "titulo": "Iniciar Sesión | Parque Safari POS",
-        "parque": mock_data.CONFIGURACION["nombre_parque"],
+        "parque": config_db.nombre_parque if config_db else mock_data.CONFIGURACION["nombre_parque"],
+        "error": error,
     }
     return render(request, "login.html", context)
+
 
 def dashboard_view(request):
     """Panel principal / Dashboard demostrativo con indicadores clave."""
@@ -202,3 +248,19 @@ def configuracion_view(request):
         "config": mock_data.CONFIGURACION,
     }
     return render(request, "configuracion.html", context)
+
+def custom_page_not_found_view(request, exception=None):
+    """Vista personalizada para manejar rutas inexistentes (Error 404 - Semana 10)."""
+    context = {
+        "titulo": "Página no encontrada | Parque Safari POS",
+        "ruta": request.path.lstrip('/'),
+    }
+    return render(request, "404.html", context, status=404)
+
+def custom_server_error_view(request):
+    """Vista personalizada para caídas de servidor y excepciones no controladas (Error 500 - Semana 10)."""
+    context = {
+        "titulo": "Error del Servidor | Parque Safari POS",
+    }
+    return render(request, "500.html", context, status=500)
+

@@ -1,0 +1,131 @@
+================================================================================
+PARQUE SAFARI CHILE — CREDENCIALES DE ACCESO Y GUÍA DE PRUEBA DE ROLES
+Proyecto: Sistema Web POS (Semanas 10, 11 y 12)
+Base de Datos: PostgreSQL en Neon Cloud
+Fecha: Octubre 2026
+================================================================================
+
+Este documento contiene las cuentas de usuario demostrativas registradas
+en la Base de Datos PostgreSQL (Neon) para que tú y tus compañeros de equipo
+puedan iniciar sesión, evaluar los diferentes niveles de permisos, probar
+la interfaz táctil y validar los requisitos de las Semanas 10, 11 y 12.
+
+--------------------------------------------------------------------------------
+1. RESUMEN DE CREDENCIALES POR PERFIL (BD NEON)
+--------------------------------------------------------------------------------
+Nota: Todos los usuarios de prueba tienen la misma clave rápida demostrativa: 123
+(o pueden hacer clic directo en las tarjetas de acceso rápido en el login).
+
+--------------------------------------------------------------------------------
+ROL 1: ADMINISTRADOR (Acceso Total y Gerencial)
+--------------------------------------------------------------------------------
+- Nombre:         Carlos Mendoza
+- Usuario (login): cmendoza
+- Contraseña:     123
+- Email:          c.mendoza@parquesafari.cl
+- Terminal:       Todas las cajas
+- Enfoque:        Gestión integral del sistema
+- Permisos visibles:
+  * CRUD y control total de Productos y Categorías
+  * CRUD de Menús y Combos promocionales
+  * Administración de Usuarios y Cargos
+  * Mapa de Mesas y Salón
+  * Fiados y Cuentas de Personal
+  * Métricas gerenciales, Estadísticas y Centro de Reportes (Exportación PDF/Excel)
+  * Configuración general de empresa, impresoras térmicas y red
+
+--------------------------------------------------------------------------------
+ROL 2: CAJERO (Punto de Venta y Cuadratura)
+--------------------------------------------------------------------------------
+- Nombre:         Jean Valenzuela
+- Usuario (login): jvalenzuela
+- Contraseña:     123
+- Email:          j.valenzuela@parquesafari.cl
+- Terminal:       Caja 01 - Principal
+- Enfoque:        Operación POS, ventas y arqueo de caja
+- Permisos visibles:
+  * Punto de Venta (POS) táctil con catálogo y buscador
+  * Modalidad BAR (boleta electrónica inmediata)
+  * Modalidad MESA (toma de comanda y boleta al pagar)
+  * Visualización y cambio de estado de Mesas del salón
+  * Emisión de Boleta térmica de 80mm y comandas de producción
+  * Apertura de Caja con fondo para sencillo ($50.000)
+  * Cierre de Caja con Cuadratura desglosada:
+    - Billetes: $20.000, $10.000, $5.000, $1.000
+    - Monedas:  $500, $100, $50, $5, $1
+
+--------------------------------------------------------------------------------
+ROL 3: GARZÓN / VENDEDOR DE SALÓN
+--------------------------------------------------------------------------------
+- Nombre:         Camila Silva
+- Usuario (login): csilva
+- Contraseña:     123
+- Email:          c.silva@parquesafari.cl
+- Terminal:       Caja Móvil 02 (Tablet Salón)
+- Enfoque:        Atención a comensales en mesas
+- Permisos visibles:
+  * Toma de pedidos en mesas (Salón Principal, Terraza Jirafas, etc.)
+  * Enrutamiento automático de pedidos a Cocina y Bar
+  * Mapa de mesas con control de tiempos de ocupación
+
+--------------------------------------------------------------------------------
+ROL 4: COCINERO JEFE (Cocina KDS)
+--------------------------------------------------------------------------------
+- Nombre:         Matías Torres
+- Usuario (login): mtorres
+- Contraseña:     123
+- Email:          m.torres@parquesafari.cl
+- Terminal:       Terminal KDS Cocina
+- Enfoque:        Producción de comida caliente
+- Permisos visibles:
+  * Pantalla de Cocina KDS (Kitchen Display System)
+  * Filtros de pedidos en tiempo real (Pendientes, En preparación, Listos)
+  * Semáforo de urgencia con cronómetro (+10 min, +20 min urgente)
+  * Comandas con notas de cocina (ej: "Sin cebolla", "Papas bien doradas")
+  * Botones de avance: "Comenzar" -> "Listo para despacho"
+
+--------------------------------------------------------------------------------
+ROL 5: BARMAN (Bar BDS)
+--------------------------------------------------------------------------------
+- Nombre:         Patricia Gómez
+- Usuario (login): pgomez
+- Contraseña:     123
+- Email:          p.gomez@parquesafari.cl
+- Terminal:       Terminal BDS Bar
+- Enfoque:        Bebestibles, cafetería y postres
+- Permisos visibles:
+  * Pantalla de Bar BDS (Bar Display System)
+  * Cola de bebestibles, jugos naturales, cervezas y helados
+  * Despacho inmediato para barra y garzones
+
+--------------------------------------------------------------------------------
+2. CASOS DE PRUEBA SUGERIDOS PARA LA EVALUACIÓN
+--------------------------------------------------------------------------------
+
+Caso 1: Validación de Errores y Páginas Personalizadas (Semana 10)
+- Escribe en el navegador cualquier ruta que no exista, por ejemplo:
+  http://127.0.0.1:8000/ruta-inexistente/
+- Observarás la pantalla personalizada 404 de Parque Safari, con diseño oscuro,
+  icono temático y botón directo para volver al Panel Principal o Login.
+
+Caso 2: Enrutamiento Automático de Venta (Semana 10 y 12)
+- Ingresa como Cajero (Jean Valenzuela).
+- En el POS, añade al carrito:
+  * 1 Hamburguesa Safari (Destino: Cocina)
+  * 1 Jugo Natural Frutilla (Destino: Bar)
+  * 1 M&M Chocolate (Destino: Listo / Directo)
+- Presiona "Cobrar" y confirma la venta.
+- Ve a "Ticket y Comandas" o "Distribución":
+  Verás cómo el sistema separó automáticamente la comida para Cocina KDS y
+  los líquidos para Bar BDS, emitiendo además la boleta general.
+
+Caso 3: Apertura, Cierre y Cuadratura de Caja (Semana 12)
+- Como Cajero o Administrador, accede al módulo de Caja.
+- Permite registrar el fondo inicial de sencillo (ej: $50.000).
+- Al cerrar turno, utiliza el desglosador de efectivo para ingresar la
+  cantidad de billetes ($20.000 a $1.000) y monedas ($500 a $1). El sistema
+  calculará automáticamente el total físico y la diferencia contra las ventas.
+
+================================================================================
+Fin del documento de credenciales.
+================================================================================

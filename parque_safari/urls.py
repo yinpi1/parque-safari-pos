@@ -14,5 +14,9 @@ urlpatterns = [
     re_path(r'^static/(?P<path>.*)$', serve, {'document_root': settings.STATIC_ROOT}),
 ]
 
+handler404 = 'pos_app.views.custom_page_not_found_view'
+handler500 = 'pos_app.views.custom_server_error_view'
+
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])
+

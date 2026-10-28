@@ -1,51 +1,54 @@
-#  Sistema Web de Ventas POS — Parque Safari
+# Sistema Web de Ventas POS — Parque Safari
 
 > **Proyecto Académico — Analista Programador**  
-> **Etapa 2: MVP 2.1 — Rediseño Minimalista, Menús Desplegables, Roles & Filtros Reactivos**
+> **Estado Actual: Cumplimiento Completo hasta Semana 12 (Proceso Principal de Ventas, Cajas & Cuadratura)**  
+> **Base de Datos:** PostgreSQL en Neon Cloud / Fallback SQLite  
+> **Arquitectura:** Django MVT (Model-View-Template) con ORM y Persistencia Relacional
 
-Aplicación web desarrollada en **Django (MVT)** con diseño táctil optimizado para terminales POS y pantallas Full HD (1920x1080) y tablets táctiles. Incluye menús desplegables de acordeón, filtros de pedidos en tiempo real (Cocina KDS, Bar BDS y Mesas), selector de roles y permisos demostrativos con focos de área y modo de pantalla completa.
-
----
-
-##  Despliegue en Vercel
-
-Este proyecto está configurado para desplegarse automáticamente en **Vercel**:
-* **`vercel.json`**: Configuración de Serverless Function con `@vercel/python`.
-* **`build_files.sh`**: Instalación automática de dependencias y recopilación de archivos estáticos (`collectstatic`).
-* **`requirements.txt`**: Django 5+, Whitenoise, sqlparse, asgiref.
-
-Para desplegar:
-1. Entra a [vercel.com](https://vercel.com) e inicia sesión con tu cuenta de GitHub.
-2. Haz click en **Add New...** -> **Project**.
-3. Importa el repositorio `parque-safari-pos`.
-4. Deja la configuración por defecto y haz click en **Deploy**.
+Aplicación web desarrollada en **Django** con interfaz táctil responsiva optimizada para terminales POS, tablets de salón y pantallas de producción (KDS/BDS). Incluye control de sesiones de caja con apertura de fondo para sencillo, cuadratura de caja con desglose de billetes y monedas chilenas, ventas diferenciadas en barra vs mesa, enrutamiento a cocina/bar, mantenedores con BD y manejo personalizado de errores 404/500.
 
 ---
 
-##  Módulos Incluidos
+## 📌 Bitácora de Avances y Cumplimiento por Etapas (Semanas 10, 11 y 12)
 
-1. **Login**: Acceso táctil con selector rápido de roles demostrativos (Cajero, Administrador, Cocina, Bar).
-2. **Dashboard**: Panel principal con métricas clave (ventas del día, ticket promedio, ocupación de mesas, pedidos activos) y accesos directos.
-3. **Punto de Venta (POS)**: Catálogo clasificado por categorías, buscador en vivo, carrito interactivo con ajuste de cantidades, selector BAR vs MESA y campo de notas.
-4. **Confirmación y Ticket Térmico**:
-   - Boleta electrónica de venta para el cliente.
-   - Comanda de Cocina (solo platos calientes y notas de preparación).
-   - Comanda de Bar (solo líquidos y postres para barra).
-5. **Catálogo de Productos**: Tabla administrativa clasificada por destino de producción (Cocina / Bar / Listo) con modal de nuevo producto.
-6. **Menús y Combos**: Promociones y paquetes con cálculo de ahorro y productos incluidos.
-7. **Mapa de Mesas**: Salón con 12 mesas codificadas por estado (Disponible / Ocupada), tiempos de atención y modal de reasignación.
-8. **Usuarios y Cargos**: Gestión de colaboradores con cajas asignadas y roles del sistema.
-9. **Fiados Personal**: Control de consumos internos de colaboradores con modal de vales y resumen para descuento por nómina.
-10. **Distribución**: Diagrama de enrutamiento que muestra cómo una venta se separa y deriva automáticamente a Cocina y Bar.
-11. **Cocina KDS**: Pantalla de producción para cocineros con temporizadores de espera y cambio de estado de comandas.
-12. **Bar BDS**: Pantalla de despacho de bebestibles y postres para barman.
-13. **Estadísticas**: Curvas visuales de ventas por hora, desglose por categoría y ranking de productos más vendidos.
-14. **Centro de Reportes**: Filtros por rango de fechas y botones de exportación a PDF y Excel.
-15. **Configuración**: Parámetros de la empresa, impresoras térmicas de 80mm e impuestos.
+| Semana | Requisitos de Pauta | Estado | Implementación en el Proyecto |
+| :--- | :--- | :---: | :--- |
+| **Semana 10** | **1.** Creación de proyecto Django.<br>**2.** Inicio de sesión con cuentas de usuarios desde BD según perfil.<br>**3.** Validación de campos de inicio de sesión.<br>**4.** Páginas personalizadas ante errores en ejecución (Error 404, Error 500, rutas erróneas, caídas de servidor).<br>**5.** Validaciones para enfrentar vulnerabilidades. | **COMPLETO** | - Modelos `Usuario` y `Cargo` conectados a PostgreSQL (Neon).<br>- Login con verificación de credenciales, roles y estado de cuenta.<br>- Plantillas temáticas personalizadas [`templates/404.html`](templates/404.html) y [`templates/500.html`](templates/500.html) con `handler404` y `handler500`. |
+| **Semana 11** | **1.** Mantenedores de trabajo con BD (CRUDs básicos):<br>&nbsp;&nbsp;• Gestión de Usuarios y Roles.<br>&nbsp;&nbsp;• Gestión de Mesas del Salón.<br>&nbsp;&nbsp;• Gestión de Puntos de Venta (Terminales).<br>&nbsp;&nbsp;• Gestión de Menús y Combos.<br>&nbsp;&nbsp;• Gestión de Productos y Categorías.<br>&nbsp;&nbsp;• Historial de Acciones / Auditoría.<br>**2.** Validación de campos en formularios de módulos. | **COMPLETO** | - Modelos ORM relacionales para `Producto`, `Categoria`, `MenuCombo`, `Mesa`, `Usuario`, `Cargo` y `ConfiguracionPOS`.<br>- Modelo `LogAuditoria` para trazabilidad de logins, cambios de estado y ventas.<br>- Datos demostrativos (Seeds) cargados en Neon PostgreSQL. |
+| **Semana 12** | **1.** Proceso principal de trabajo (Ventas):<br>&nbsp;&nbsp;• Inicio y Cierre de jornada.<br>&nbsp;&nbsp;• Apertura y Cierre de cajas (sesiones).<br>&nbsp;&nbsp;• Indicar monto de efectivo disponible en apertura (sencillo/vueltos).<br>&nbsp;&nbsp;• Venta en barra (boleta inmediata) vs Pedido en mesa por garzón (boleta al pagar).<br>&nbsp;&nbsp;• Proceso de cuadratura al cerrar la caja con desglose obligatorio de billetes ($20.000, $10.000, $5.000, $1.000) y monedas ($500, $100, $50, $5, $1).<br>&nbsp;&nbsp;• Reportes estadísticos de cierre.<br>**2.** Validación de campos del proceso principal. | **COMPLETO** | - Modelos `SesionCaja`, `CuadraturaCaja`, `Venta`, `DetalleVenta` y `ComandaProduccion`.<br>- Modal táctil de **Caja & Cuadratura** en la barra superior con calculadora de billetes y monedas en vivo y cálculo de sobrante/faltante.<br>- POS con alternador **BAR / RETIRO** (boleta electrónica inmediata) vs **MESA** (comanda de pedido y boleta diferida). |
+| *Semana 13+* | *Pruebas con pares evaluadores y plan de mejoras.* | *Futuro* | *Reservado para las siguientes semanas.* |
 
 ---
 
-##  Ejecución Local
+## 👥 Cuentas de Acceso Demostrativas (Para Evaluación de Roles)
+
+Todas las cuentas están creadas en la base de datos PostgreSQL de **Neon**.  
+Para pruebas rápidas, la contraseña universal de prueba es **`123`** (o selección rápida en la pantalla de inicio):
+
+| Usuario | Clave | Nombre | Rol / Cargo | Área de Foco / Permisos |
+| :--- | :---: | :--- | :--- | :--- |
+| **`cmendoza`** | `123` | Carlos Mendoza | **Administrador** | Control total, catálogos, usuarios, finanzas y reportes. |
+| **`jvalenzuela`**| `123` | Jean Valenzuela | **Cajero** | Punto de Venta (POS), cobro, apertura y cuadratura de caja. |
+| **`csilva`** | `123` | Camila Silva | **Garzón / Salón** | Mapa de mesas, comanda a mesas y derivación a producción. |
+| **`mtorres`** | `123` | Matías Torres | **Cocina** | Cocina KDS, pedidos calientes, temporizadores y despacho. |
+| **`pgomez`** | `123` | Patricia Gómez | **Bar** | Bar BDS, despacho de bebestibles, postres y cafetería. |
+
+> Consulta la guía completa para tus evaluadores en: [`CREDENCIALES_Y_ROLES.txt`](CREDENCIALES_Y_ROLES.txt).
+
+---
+
+## 🏗️ Arquitectura y Tecnologías
+
+* **Backend:** Python 3.12+ con Django 5.x / 6.x (Patrón MVT).
+* **ORM:** Django ORM con soporte relacional completo y llaves foráneas (`models.ForeignKey`, `OneToOneField`).
+* **Base de Datos Cloud:** **PostgreSQL 15** en [Neon.tech](https://neon.tech) (conexión segura SSL).
+* **Frontend:** HTML5 semántico, CSS3 Vanilla modular con gradientes modernos, Bootstrap 5.3 y Bootstrap Icons.
+* **Manejo de Errores:** Controladores de vista `custom_page_not_found_view` (404) y `custom_server_error_view` (500).
+* **Despliegue:** Preparado para Vercel Serverless Function con WhiteNoise para estáticos.
+
+---
+
+## 🚀 Puesta en Marcha Local
 
 ```bash
 # 1. Clonar el repositorio
@@ -62,7 +65,17 @@ source venv/bin/activate
 # 3. Instalar dependencias
 pip install -r requirements.txt
 
-# 4. Iniciar servidor de desarrollo
+# 4. Configurar variables de entorno (.env)
+# Configura DATABASE_URL con la conexión a Neon PostgreSQL:
+# DATABASE_URL=postgresql://neondb_owner:...@ep-dry-truth-...neon.tech/neondb?sslmode=require
+
+# 5. Ejecutar migraciones (ya creadas en pos_app/migrations/)
+python manage.py migrate
+
+# 6. Opcional: Recargar datos de prueba iniciales (Seeds)
+python seed_neon.py
+
+# 7. Iniciar el servidor
 python manage.py runserver
 ```
 
@@ -70,6 +83,14 @@ Abre en tu navegador: **`http://127.0.0.1:8000/`**
 
 ---
 
-##  Estructura de Estilos
-* **`static/css/estilos.css`**: Hoja de estilos principal del sistema POS.
-* **`static/js/pos.js`**: Lógica de interacción táctil, carrito de compras y reloj digital en vivo.
+## 🧪 Pruebas Rápidas para la Presentación
+
+1. **Prueba de Rutas y Error 404 (Semana 10):**
+   - Ingresa a `http://127.0.0.1:8000/error-test/` para ver la pantalla 404 personalizada de Parque Safari.
+2. **Prueba de Cuadratura de Caja (Semana 12):**
+   - Haz clic en el botón superior **`CAJA & CUADRATURA`**.
+   - En la pestaña **Apertura de Caja**, verifica el fondo inicial para sencillo ($50.000).
+   - En la pestaña **Cierre & Cuadratura**, cambia las cantidades de billetes ($20.000 a $1.000) o monedas ($500 a $1) para ver cómo calcula en vivo el total y si hay sobrante o faltante.
+3. **Prueba de Venta en Barra vs Mesa (Semana 12):**
+   - En el POS, selecciona **BAR / RETIRO**: al cobrar se emite la *Boleta Electrónica Inmediata*.
+   - Alterna a **MESA**: selecciona una mesa (ej: Mesa 03), y al cobrar se emite la *Comanda de Pedido para Mesa (Boleta Diferida al Pago)*.
