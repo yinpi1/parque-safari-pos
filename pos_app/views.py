@@ -85,11 +85,39 @@ def login_view(request):
     return render(request, "login.html", context)
 
 
+def get_usuario_actual(request):
+    """Obtiene el usuario en sesión activa o un usuario por defecto con su rol real."""
+    user_id = request.session.get('usuario_id')
+    if user_id:
+        try:
+            return Usuario.objects.select_related('cargo').get(id=user_id)
+        except Exception:
+            pass
+
+    # Si hay username guardado en sesión
+    username = request.session.get('usuario_username')
+    if username:
+        try:
+            return Usuario.objects.select_related('cargo').get(usuario__iexact=username)
+        except Exception:
+            pass
+
+    # Fallback predeterminado a Cajero en BD o mock
+    try:
+        u = Usuario.objects.select_related('cargo').first()
+        if u:
+            return u
+    except Exception:
+        pass
+    return mock_data.USUARIOS[0]
+
+
 def dashboard_view(request):
-    """Panel principal / Dashboard demostrativo con indicadores clave."""
+    """Panel principal con indicadores clave y usuario en sesión real."""
+    usuario_sesion = get_usuario_actual(request)
     context = {
         "titulo": "Panel Principal | Parque Safari",
-        "usuario_actual": mock_data.USUARIOS[0],  # Jean Valenzuela
+        "usuario_actual": usuario_sesion,
         "estadisticas": mock_data.ESTADISTICAS,
         "mesas": mock_data.MESAS,
         "config": mock_data.CONFIGURACION,
@@ -102,10 +130,11 @@ def dashboard_view(request):
     return render(request, "dashboard.html", context)
 
 def pos_view(request):
-    """Interfaz principal del Punto de Venta (POS) táctil."""
+    """Interfaz principal del Punto de Venta (POS) táctil con usuario real."""
+    usuario_sesion = get_usuario_actual(request)
     context = {
         "titulo": "Punto de Venta | Parque Safari",
-        "usuario_actual": mock_data.USUARIOS[0],
+        "usuario_actual": usuario_sesion,
         "categorias": mock_data.CATEGORIAS,
         "productos": mock_data.PRODUCTOS,
         "menus": mock_data.MENUS,

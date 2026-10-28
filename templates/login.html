@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Acceso POS | Parque Safari Chile (MVP 2.1)</title>
+    <title>Acceso al Sistema | Parque Safari Chile POS</title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
@@ -27,33 +27,33 @@
         }
         .login-wrapper {
             width: 100%;
-            max-width: 500px;
+            max-width: 440px;
         }
         .login-card {
-            background: rgba(17, 24, 39, 0.92);
-            backdrop-filter: blur(16px);
+            background: rgba(17, 24, 39, 0.94);
+            backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 24px;
-            padding: 2.25rem 2rem;
+            padding: 2.75rem 2.25rem;
             box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 1px 1px rgba(255, 255, 255, 0.05);
         }
         .login-brand-icon {
-            width: 64px;
-            height: 64px;
+            width: 68px;
+            height: 68px;
             background: linear-gradient(135deg, #f59e0b, #d97706);
-            border-radius: 18px;
+            border-radius: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2.2rem;
+            font-size: 2.3rem;
             color: #0b0f19;
-            margin: 0 auto 1rem;
-            box-shadow: 0 8px 24px rgba(245, 158, 11, 0.35);
+            margin: 0 auto 1.25rem;
+            box-shadow: 0 8px 25px rgba(245, 158, 11, 0.35);
         }
-        .mvp-badge {
-            background: rgba(245, 158, 11, 0.12);
-            border: 1px solid rgba(245, 158, 11, 0.3);
-            color: #fbbf24;
+        .status-badge-online {
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #34d399;
             font-size: 0.72rem;
             font-weight: 700;
             letter-spacing: 1px;
@@ -63,11 +63,24 @@
             align-items: center;
             gap: 0.4rem;
         }
+        .status-dot-pulse {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background-color: #34d399;
+            box-shadow: 0 0 8px #34d399;
+            animation: pulse-dot 2s infinite;
+        }
+        @keyframes pulse-dot {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.3); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
         .touch-input {
             background: #0d1322;
             border: 1px solid #243048;
             color: #fff;
-            padding: 0.85rem 1.15rem;
+            padding: 0.9rem 1.15rem;
             font-size: 1rem;
             border-radius: 12px;
             transition: all 0.2s ease;
@@ -79,87 +92,6 @@
             box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
             outline: none;
         }
-        /* Tarjetas de Rol Demo (Solo MVP) */
-        .demo-roles-panel {
-            background: rgba(13, 19, 34, 0.7);
-            border: 1px dashed rgba(245, 158, 11, 0.35);
-            border-radius: 16px;
-            padding: 1.15rem;
-            margin-bottom: 1.5rem;
-        }
-        .demo-roles-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 0.85rem;
-        }
-        .demo-roles-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.65rem;
-        }
-        .role-card-btn {
-            background: #111a2d;
-            border: 1px solid #222e47;
-            border-radius: 12px;
-            padding: 0.65rem 0.75rem;
-            text-align: left;
-            cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            color: #e2e8f0;
-            display: flex;
-            flex-direction: column;
-            gap: 0.2rem;
-            position: relative;
-        }
-        .role-card-btn:hover {
-            background: #18243e;
-            border-color: #3b4d75;
-            transform: translateY(-1px);
-        }
-        .role-card-btn.active {
-            border-color: #f59e0b;
-            background: rgba(245, 158, 11, 0.08);
-            box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.35);
-        }
-        .role-card-btn .role-tag {
-            font-size: 0.68rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            display: flex;
-            align-items: center;
-            gap: 0.35rem;
-        }
-        .role-card-btn .user-name {
-            font-size: 0.85rem;
-            font-weight: 700;
-            color: #fff;
-            line-height: 1.2;
-        }
-        .role-card-btn .role-focus {
-            font-size: 0.7rem;
-            color: #94a3b8;
-            line-height: 1.2;
-        }
-        .role-card-btn .check-indicator {
-            position: absolute;
-            top: 0.5rem;
-            right: 0.5rem;
-            font-size: 0.8rem;
-            color: #f59e0b;
-            display: none;
-        }
-        .role-card-btn.active .check-indicator {
-            display: block;
-        }
-
-        /* Colores por rol */
-        .role-cajero .role-tag { color: #10b981; }
-        .role-admin .role-tag { color: #a855f7; }
-        .role-cocina .role-tag { color: #f97316; }
-        .role-bar .role-tag { color: #06b6d4; }
-
         .btn-submit-login {
             background: linear-gradient(135deg, #f59e0b, #d97706);
             color: #0b0f19;
@@ -182,69 +114,21 @@
 <body>
     <div class="login-wrapper">
         <div class="login-card">
-            <!-- Encabezado de Marca -->
+            <!-- Encabezado Institucional -->
             <div class="text-center mb-4">
                 <div class="login-brand-icon">
                     <i class="bi bi-compass-fill"></i>
                 </div>
-                <h2 class="fw-bold mb-1 text-white text-uppercase" style="letter-spacing: 0.5px; font-size: 1.5rem;">Parque Safari</h2>
+                <h2 class="fw-bold mb-1 text-white text-uppercase" style="letter-spacing: 0.5px; font-size: 1.6rem;">Parque Safari</h2>
                 <p class="text-secondary fw-semibold mb-2" style="font-size: 0.82rem; letter-spacing: 1.5px;">SISTEMA WEB DE VENTAS POS</p>
-                <div class="mvp-badge">
-                    <i class="bi bi-stars"></i>
-                    <span>VERSIÓN 2.1 &bull; MAQUETA INTERACTIVA</span>
+                <div class="status-badge-online">
+                    <span class="status-dot-pulse"></span>
+                    <span>BASE DE DATOS ACTIVA &bull; TERMINAL POS 01</span>
                 </div>
             </div>
 
-            <!-- Accesos Rápidos de Prueba (Solo MVP) -->
-            <div class="demo-roles-panel">
-                <div class="demo-roles-header">
-                    <span class="text-warning small fw-bold text-uppercase d-flex align-items-center gap-1">
-                        <i class="bi bi-person-badge-fill"></i>
-                        <span>Acceso Rápido (Solo MVP)</span>
-                    </span>
-                    <span class="badge bg-secondary text-light font-monospace" style="font-size: 0.65rem;">DEMO ROLES</span>
-                </div>
-                <p class="text-secondary mb-2" style="font-size: 0.74rem;">
-                    Selecciona un perfil demostrativo para evaluar permisos y enfoque de trabajo:
-                </p>
-
-                <div class="demo-roles-grid">
-                    <!-- Cajero -->
-                    <div class="role-card-btn role-cajero active" id="chip-cajero" onclick="selectRole('jvalenzuela', 'cajero', 'Jean Valenzuela', 'Cajero', 'Ventas POS & Mesas')">
-                        <div class="role-tag"><i class="bi bi-calculator"></i> Cajero</div>
-                        <div class="user-name">Jean Valenzuela</div>
-                        <div class="role-focus">Foco: POS & Mesas</div>
-                        <i class="bi bi-check-circle-fill check-indicator"></i>
-                    </div>
-
-                    <!-- Administrador -->
-                    <div class="role-card-btn role-admin" id="chip-admin" onclick="selectRole('cmendoza', 'admin', 'Carlos Mendoza', 'Administrador', 'Gestión Total')">
-                        <div class="role-tag"><i class="bi bi-shield-lock-fill"></i> Admin</div>
-                        <div class="user-name">Carlos Mendoza</div>
-                        <div class="role-focus">Foco: Gestión & Config</div>
-                        <i class="bi bi-check-circle-fill check-indicator"></i>
-                    </div>
-
-                    <!-- Cocina -->
-                    <div class="role-card-btn role-cocina" id="chip-cocina" onclick="selectRole('mtorres', 'cocina', 'Matías Torres', 'Cocinero Jefe', 'Comandas KDS')">
-                        <div class="role-tag"><i class="bi bi-fire"></i> Cocina</div>
-                        <div class="user-name">Matías Torres</div>
-                        <div class="role-focus">Foco: Cocina KDS</div>
-                        <i class="bi bi-check-circle-fill check-indicator"></i>
-                    </div>
-
-                    <!-- Bar -->
-                    <div class="role-card-btn role-bar" id="chip-bar" onclick="selectRole('pgomez', 'bar', 'Patricia Gómez', 'Barman', 'Líquidos BDS')">
-                        <div class="role-tag"><i class="bi bi-cup-straw"></i> Bar</div>
-                        <div class="user-name">Patricia Gómez</div>
-                        <div class="role-focus">Foco: Bar BDS</div>
-                        <i class="bi bi-check-circle-fill check-indicator"></i>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Formulario de Acceso -->
-            <form method="POST" action="{% url 'login' %}" onsubmit="saveActiveRoleBeforeSubmit()">
+            <!-- Formulario de Acceso Realista -->
+            <form method="POST" action="{% url 'login' %}">
                 {% csrf_token %}
                 {% if error %}
                 <div class="alert alert-danger py-2 px-3 small rounded-3 d-flex align-items-center gap-2 mb-3 border-danger" style="background: rgba(239, 68, 68, 0.15); color: #fca5a5;">
@@ -252,86 +136,38 @@
                     <div>{{ error }}</div>
                 </div>
                 {% endif %}
+
                 <div class="mb-3">
                     <label class="form-label text-secondary fw-semibold small mb-1">USUARIO ASIGNADO</label>
                     <div class="input-group">
                         <span class="input-group-text bg-dark border-secondary text-secondary" style="border-radius: 12px 0 0 12px; border-color: #243048 !important;"><i class="bi bi-person-fill"></i></span>
-                        <input type="text" id="userInput" name="username" class="form-control touch-input" value="jvalenzuela" required placeholder="Usuario del sistema" style="border-radius: 0 12px 12px 0;">
+                        <input type="text" id="userInput" name="username" class="form-control touch-input" required placeholder="Ej: jvalenzuela, cmendoza..." style="border-radius: 0 12px 12px 0;" autofocus>
                     </div>
                 </div>
 
                 <div class="mb-4">
-                    <label class="form-label text-secondary fw-semibold small mb-1">PIN / CLAVE DE ACCESO</label>
+                    <label class="form-label text-secondary fw-semibold small mb-1">PIN / CONTRASEÑA</label>
                     <div class="input-group">
                         <span class="input-group-text bg-dark border-secondary text-secondary" style="border-radius: 12px 0 0 12px; border-color: #243048 !important;"><i class="bi bi-lock-fill"></i></span>
-                        <input type="password" id="passInput" name="password" class="form-control touch-input" value="123456" required placeholder="••••••••" style="border-radius: 0 12px 12px 0;">
+                        <input type="password" id="passInput" name="password" class="form-control touch-input" required placeholder="••••••••" style="border-radius: 0 12px 12px 0;">
                     </div>
                 </div>
 
                 <button type="submit" class="btn btn-submit-login w-100 d-flex align-items-center justify-content-center gap-2">
-                    <span id="submitLabel">INGRESAR COMO CAJERO</span>
+                    <span>INICIAR SESIÓN</span>
                     <i class="bi bi-arrow-right-circle-fill fs-5"></i>
                 </button>
             </form>
 
-            <div class="text-center mt-3 pt-3 border-top" style="border-color: rgba(255, 255, 255, 0.08) !important;">
-                <small class="text-secondary" style="font-size: 0.72rem;">
-                    Terminal POS 01 &bull; Parque Safari Rancagua &bull; Analista Programador
+            <div class="text-center mt-4 pt-3 border-top" style="border-color: rgba(255, 255, 255, 0.08) !important;">
+                <small class="text-secondary d-block" style="font-size: 0.74rem;">
+                    Terminal POS 01 &bull; Casona Central Parque Safari Rancagua
+                </small>
+                <small class="text-secondary" style="font-size: 0.70rem; opacity: 0.7;">
+                    Acceso protegido con permisos de usuario según cargo
                 </small>
             </div>
         </div>
     </div>
-
-    <script>
-        let selectedRoleState = {
-            username: 'jvalenzuela',
-            roleKey: 'cajero',
-            nombre: 'Jean Valenzuela',
-            cargo: 'Cajero',
-            focus: 'Ventas POS & Mesas',
-            badgeClass: 'bg-emerald'
-        };
-
-        function selectRole(username, roleKey, nombre, cargo, focus) {
-            selectedRoleState = { username, roleKey, nombre, cargo, focus };
-            
-            // Actualizar campos
-            document.getElementById('userInput').value = username;
-            document.getElementById('passInput').value = '123456';
-            
-            // Actualizar botón
-            const submitLabel = document.getElementById('submitLabel');
-            if (submitLabel) {
-                submitLabel.textContent = `INGRESAR COMO ${cargo.toUpperCase()}`;
-            }
-
-            // Actualizar chips activos
-            document.querySelectorAll('.role-card-btn').forEach(btn => btn.classList.remove('active'));
-            const activeChip = document.getElementById(`chip-${roleKey}`);
-            if (activeChip) activeChip.classList.add('active');
-
-            // Guardar en localStorage para que persista en toda la app
-            localStorage.setItem('safari_active_role', JSON.stringify(selectedRoleState));
-        }
-
-        function saveActiveRoleBeforeSubmit() {
-            localStorage.setItem('safari_active_role', JSON.stringify(selectedRoleState));
-        }
-
-        // Al cargar la página, restaurar o setear por defecto
-        document.addEventListener('DOMContentLoaded', () => {
-            const saved = localStorage.getItem('safari_active_role');
-            if (saved) {
-                try {
-                    const parsed = JSON.parse(saved);
-                    selectRole(parsed.username, parsed.roleKey, parsed.nombre, parsed.cargo, parsed.focus);
-                } catch(e) {
-                    selectRole('jvalenzuela', 'cajero', 'Jean Valenzuela', 'Cajero', 'Ventas POS & Mesas');
-                }
-            } else {
-                selectRole('jvalenzuela', 'cajero', 'Jean Valenzuela', 'Cajero', 'Ventas POS & Mesas');
-            }
-        });
-    </script>
 </body>
 </html>

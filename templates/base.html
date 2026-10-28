@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ titulo|default:"Parque Safari — Sistema POS" }} (MVP 2.1)</title>
+    <title>{{ titulo|default:"Parque Safari — Sistema POS" }}</title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
@@ -32,7 +32,7 @@
                 </div>
                 <div class="pos-brand-text">
                     <h1>Parque Safari</h1>
-                    <span>SISTEMA POS &bull; MVP 2.1</span>
+                    <span>SISTEMA DE VENTAS POS</span>
                 </div>
             </a>
         </div>
@@ -47,70 +47,18 @@
             <!-- Live Clock -->
             <div class="pos-clock" id="liveClock">00:00:00</div>
 
-            <!-- Selector / Pill de Rol Demostrativo con Dropdown (MVP 2.1) -->
-            <div class="dropdown pos-role-dropdown-wrapper">
-                <button class="pos-user-badge-btn dropdown-toggle" type="button" id="roleDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false" title="Cambiar rol demostrativo">
-                    <div class="pos-user-avatar" id="navAvatar">
-                        {{ usuario_actual.nombre|slice:":2"|upper }}
+            <!-- Perfil de Usuario Autenticado en Sesión -->
+            <div class="pos-user-badge-btn d-flex align-items-center gap-2" id="userProfileBadge">
+                <div class="pos-user-avatar" id="navAvatar" style="background-color: #f59e0b; color: #000; font-weight: 800;">
+                    {{ usuario_actual.nombre|slice:":2"|upper }}
+                </div>
+                <div class="d-none d-md-block text-start pe-1">
+                    <div class="fw-bold nav-user-name text-white" id="navUserName">{{ usuario_actual.nombre }}</div>
+                    <div class="nav-role-badge-tag" id="navRoleTag">
+                        <span class="role-pill-indicator" id="rolePillDot" style="background-color: #34d399;"></span>
+                        <span id="navRoleCargo" class="text-secondary small">{{ usuario_actual.cargo }}</span>
                     </div>
-                    <div class="d-none d-md-block text-start pe-1">
-                        <div class="fw-bold nav-user-name" id="navUserName">{{ usuario_actual.nombre }}</div>
-                        <div class="nav-role-badge-tag" id="navRoleTag">
-                            <span class="role-pill-indicator" id="rolePillDot"></span>
-                            <span id="navRoleCargo">{{ usuario_actual.cargo }}</span>
-                        </div>
-                    </div>
-                    <span class="badge bg-warning text-dark ms-1 d-none d-xl-inline-block font-monospace role-switcher-badge">
-                        ROL MVP ▼
-                    </span>
-                </button>
-                
-                <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end shadow-lg pos-role-menu" aria-labelledby="roleDropdownBtn">
-                    <li class="dropdown-header text-warning small fw-bold d-flex justify-content-between align-items-center">
-                        <span>SIMULADOR DE ROLES (MVP)</span>
-                        <span class="badge bg-secondary font-monospace" style="font-size: 0.65rem;">EVALUACIÓN</span>
-                    </li>
-                    <li><p class="text-secondary px-3 py-1 mb-1" style="font-size: 0.72rem;">Alterna perfiles para comprobar niveles de permisos y foco de trabajo:</p></li>
-                    
-                    <li><a class="dropdown-item role-item-opt d-flex align-items-center gap-2" href="javascript:void(0)" onclick="setGlobalRole('cajero')">
-                        <span class="badge-role-avatar role-cajero-bg"><i class="bi bi-calculator"></i></span>
-                        <div class="flex-grow-1">
-                            <div class="fw-bold text-white small">Cajero &bull; Jean Valenzuela</div>
-                            <small class="text-emerald d-block" style="font-size: 0.7rem;">Foco: Ventas POS & Mesas</small>
-                        </div>
-                    </a></li>
-
-                    <li><a class="dropdown-item role-item-opt d-flex align-items-center gap-2" href="javascript:void(0)" onclick="setGlobalRole('admin')">
-                        <span class="badge-role-avatar role-admin-bg"><i class="bi bi-shield-check"></i></span>
-                        <div class="flex-grow-1">
-                            <div class="fw-bold text-white small">Administrador &bull; Carlos Mendoza</div>
-                            <small class="text-purple d-block" style="font-size: 0.7rem;">Permisos: Gestión Total & Reportes</small>
-                        </div>
-                    </a></li>
-
-                    <li><a class="dropdown-item role-item-opt d-flex align-items-center gap-2" href="javascript:void(0)" onclick="setGlobalRole('cocina')">
-                        <span class="badge-role-avatar role-cocina-bg"><i class="bi bi-fire"></i></span>
-                        <div class="flex-grow-1">
-                            <div class="fw-bold text-white small">Cocina KDS &bull; Matías Torres</div>
-                            <small class="text-orange d-block" style="font-size: 0.7rem;">Foco: Comandas calientes</small>
-                        </div>
-                    </a></li>
-
-                    <li><a class="dropdown-item role-item-opt d-flex align-items-center gap-2" href="javascript:void(0)" onclick="setGlobalRole('bar')">
-                        <span class="badge-role-avatar role-bar-bg"><i class="bi bi-cup-straw"></i></span>
-                        <div class="flex-grow-1">
-                            <div class="fw-bold text-white small">Bar BDS &bull; Patricia Gómez</div>
-                            <small class="text-cyan d-block" style="font-size: 0.7rem;">Foco: Barra & Líquidos</small>
-                        </div>
-                    </a></li>
-
-                    <li><hr class="dropdown-divider border-secondary my-2"></li>
-                    <li class="px-3 py-1">
-                        <small class="text-secondary" style="font-size: 0.7rem;">
-                            <i class="bi bi-info-circle me-1"></i>En el menú lateral se iluminará el área de foco del rol seleccionado.
-                        </small>
-                    </li>
-                </ul>
+                </div>
             </div>
 
             <!-- Logout / Lock -->
@@ -267,8 +215,8 @@
             <!-- Footer Badge -->
             <div class="pos-sidebar-footer">
                 <small class="text-secondary" style="font-size: 0.72rem;">
-                    Parque Safari POS &bull; v2.1 MVP<br>
-                    Optimizado Tablet 1080p
+                    Parque Safari POS &bull; Producción<br>
+                    Optimizado Tablet & Terminal 1080p
                 </small>
             </div>
         </aside>
