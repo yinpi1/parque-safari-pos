@@ -14,7 +14,7 @@
                     <h2 class="pos-view-title mb-0">Bar BDS (Bar Display System)</h2>
                     <span class="badge bg-info bg-opacity-25 text-info font-monospace px-2 py-1">PANTALLA BARRA</span>
                 </div>
-                <p class="pos-view-subtitle mb-0">Despacho de jugos naturales, cervezas schop, cafetería y helados</p>
+                <p class="pos-view-subtitle mb-0">Despacho de jugos naturales, cervezas schop, cafetería y helados sincronizado con PostgreSQL</p>
             </div>
         </div>
 
@@ -42,7 +42,7 @@
                     <button class="filter-pill pill-atrasado" data-filter-status="atrasados">
                         <i class="bi bi-exclamation-triangle-fill text-danger me-1"></i>
                         <span>Atrasados (>10m)</span>
-                        <span class="pill-counter" id="countBarAtrasados">0</span>
+                        <span class="pill-counter" id="countBarAtrasados">{{ total_atrasados|default:0 }}</span>
                     </button>
                     <button class="filter-pill" data-filter-status="Pendiente">
                         <i class="bi bi-hourglass-split text-danger me-1"></i>
@@ -91,18 +91,19 @@
     </div>
 
     <!-- Grid de Tarjetas Bar BDS -->
-    <div class="pos-kds-grid" id="bdsGrid">
+    <div class="pos-kds-grid" id="bdsGrid" data-comanda-url="{% url 'actualizar_estado_comanda' %}">
         {% for ped in pedidos %}
         <div class="pos-kds-card" style="border-color: rgba(59, 130, 246, 0.4);"
              data-pedido-id="{{ ped.id }}"
              data-venta="{{ ped.venta_num }}"
              data-estado="{{ ped.estado }}"
+             data-urgencia="{{ ped.urgencia|default:'normal' }}"
              data-minutos="{{ ped.minutos_espera }}"
              data-modalidad="{{ ped.modalidad }}"
              data-ubicacion="{{ ped.ubicacion }}"
              data-mozo="{{ ped.mozo }}"
              data-search-text="{{ ped.id }} {{ ped.venta_num }} {{ ped.ubicacion }} {{ ped.mozo }} {% for p in ped.productos %}{{ p.nombre }} {{ p.nota }} {% endfor %} {{ ped.comentarios }}">
-            
+
             <!-- Cabecera -->
             <div class="pos-kds-header">
                 <div>
@@ -154,18 +155,18 @@
                 {% endif %}
             </div>
 
-            <!-- Acciones BDS Táctiles -->
+            <!-- Acciones BDS Táctiles conectadas a PostgreSQL -->
             <div class="pos-kds-footer">
                 {% if ped.estado == 'Pendiente' %}
-                    <button class="btn btn-warning fw-bold w-100 kds-action-btn" data-action="preparar" style="grid-column: span 2;">
+                    <button type="button" class="btn btn-warning fw-bold w-100 kds-action-btn" data-codigo="{{ ped.id }}" data-area="BAR" data-action="preparar" style="grid-column: span 2;">
                         <i class="bi bi-cup-hot-fill me-1"></i> En Preparación
                     </button>
                 {% elif ped.estado == 'En preparación' %}
-                    <button class="btn btn-success fw-bold w-100 kds-action-btn" data-action="completar" style="grid-column: span 2;">
+                    <button type="button" class="btn btn-success fw-bold w-100 kds-action-btn" data-codigo="{{ ped.id }}" data-area="BAR" data-action="completar" style="grid-column: span 2;">
                         <i class="bi bi-check2-circle me-1"></i> Listo para Retiro
                     </button>
                 {% else %}
-                    <button class="btn btn-outline-info fw-bold w-100" style="grid-column: span 2;" onclick="alert('Bebestible entregado al garzón o cliente.')">
+                    <button type="button" class="btn btn-outline-info fw-bold w-100 kds-action-btn" data-codigo="{{ ped.id }}" data-area="BAR" data-action="entregar" style="grid-column: span 2;">
                         <i class="bi bi-check-all me-1"></i> Entregado en Barra
                     </button>
                 {% endif %}
@@ -176,12 +177,12 @@
     </div>
 
     <!-- Empty State -->
-    <div class="pos-empty-filter-state" id="bdsEmptyState" style="display: none;">
+    <div class="pos-empty-filter-state" id="bdsEmptyState" {% if pedidos %}style="display: none;"{% endif %}>
         <div class="empty-icon text-secondary">
             <i class="bi bi-cup-straw"></i>
         </div>
         <h4 class="fw-bold text-white mb-2">No hay comandas de bar con este filtro</h4>
-        <p class="text-secondary mb-3">Intenta cambiando el filtro de estado o limpiando el texto de búsqueda.</p>
+        <p class="text-secondary mb-3">Las nuevas ventas con bebestibles y postres de barra aparecerán aquí automáticamente.</p>
         <button class="btn btn-info fw-bold px-4" onclick="resetBdsFilters()">
             <i class="bi bi-arrow-counterclockwise me-1"></i> Restablecer Filtros
         </button>
@@ -200,23 +201,47 @@
         const locSelect = document.getElementById('bdsLocationFilter');
         const searchInput = document.getElementById('bdsSearchInput');
         const btnReset = document.getElementById('btnResetBdsFilters');
-        const cards = document.querySelectorAll('#bdsGrid .pos-kds-card');
         const emptyState = document.getElementById('bdsEmptyState');
-
-        // Contar atrasados (>10 min)
-        let atrasadosCount = 0;
-        cards.forEach(card => {
-            const min = parseInt(card.dataset.minutos || '0');
-            if (min >= 10 && card.dataset.estado !== 'Listo') {
-                atrasadosCount++;
-            }
-        });
-        const countAtrasadosEl = document.getElementById('countBarAtrasados');
-        if (countAtrasadosEl) countAtrasadosEl.textContent = atrasadosCount;
 
         let currentStatusFilter = 'todos';
 
+        function updateCountersFromDom() {
+            const activeCards = Array.from(document.querySelectorAll('#bdsGrid .pos-kds-card')).filter(
+                c => c.dataset.estado !== 'Entregado'
+            );
+            let pendientes = 0;
+            let enPrep = 0;
+            let listos = 0;
+            let atrasados = 0;
+
+            activeCards.forEach(card => {
+                const st = card.dataset.estado;
+                const min = parseInt(card.dataset.minutos || '0', 10);
+                const urg = card.dataset.urgencia;
+                if (st === 'Pendiente') pendientes++;
+                else if (st === 'En preparación') enPrep++;
+                else if (st === 'Listo') listos++;
+
+                if ((min >= 10 || urg === 'urgente' || urg === 'advertencia') && st !== 'Listo' && st !== 'Entregado') {
+                    atrasados++;
+                }
+            });
+
+            const elAll = document.getElementById('countBarAll');
+            const elAtr = document.getElementById('countBarAtrasados');
+            const elPend = document.getElementById('countBarPendientes');
+            const elPrep = document.getElementById('countBarPrep');
+            const elListos = document.getElementById('countBarListos');
+
+            if (elAll) elAll.textContent = activeCards.length;
+            if (elAtr) elAtr.textContent = atrasados;
+            if (elPend) elPend.textContent = pendientes;
+            if (elPrep) elPrep.textContent = enPrep;
+            if (elListos) elListos.textContent = listos;
+        }
+
         function applyFilter() {
+            const cards = document.querySelectorAll('#bdsGrid .pos-kds-card');
             const selectedLocation = locSelect ? locSelect.value : 'todas';
             const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
@@ -224,25 +249,28 @@
 
             cards.forEach(card => {
                 const cardEstado = card.dataset.estado;
+                if (cardEstado === 'Entregado') {
+                    card.style.display = 'none';
+                    return;
+                }
+
                 const cardModalidad = card.dataset.modalidad;
-                const cardMinutos = parseInt(card.dataset.minutos || '0');
+                const cardMinutos = parseInt(card.dataset.minutos || '0', 10);
+                const cardUrgencia = card.dataset.urgencia;
                 const cardText = (card.dataset.searchText || '').toLowerCase();
 
-                // 1. Estado
                 let matchesStatus = true;
                 if (currentStatusFilter === 'atrasados') {
-                    matchesStatus = cardMinutos >= 10 && cardEstado !== 'Listo';
+                    matchesStatus = (cardMinutos >= 10 || cardUrgencia === 'urgente' || cardUrgencia === 'advertencia') && cardEstado !== 'Listo';
                 } else if (currentStatusFilter !== 'todos') {
                     matchesStatus = cardEstado === currentStatusFilter;
                 }
 
-                // 2. Ubicación
                 let matchesLocation = true;
                 if (selectedLocation !== 'todas') {
                     matchesLocation = cardModalidad === selectedLocation;
                 }
 
-                // 3. Búsqueda
                 let matchesSearch = true;
                 if (query.length > 0) {
                     matchesSearch = cardText.includes(query);
@@ -260,6 +288,27 @@
                 emptyState.style.display = visibleCount === 0 ? 'block' : 'none';
             }
         }
+
+        updateCountersFromDom();
+        applyFilter();
+
+        window.refreshBdsBoardState = function(serverCounters) {
+            if (serverCounters) {
+                const elAll = document.getElementById('countBarAll');
+                const elAtr = document.getElementById('countBarAtrasados');
+                const elPend = document.getElementById('countBarPendientes');
+                const elPrep = document.getElementById('countBarPrep');
+                const elListos = document.getElementById('countBarListos');
+                if (elAll && typeof serverCounters.todos === 'number') elAll.textContent = serverCounters.todos;
+                if (elAtr && typeof serverCounters.atrasados === 'number') elAtr.textContent = serverCounters.atrasados;
+                if (elPend && typeof serverCounters.pendientes === 'number') elPend.textContent = serverCounters.pendientes;
+                if (elPrep && typeof serverCounters.en_preparacion === 'number') elPrep.textContent = serverCounters.en_preparacion;
+                if (elListos && typeof serverCounters.listos === 'number') elListos.textContent = serverCounters.listos;
+            } else {
+                updateCountersFromDom();
+            }
+            applyFilter();
+        };
 
         pills.forEach(pill => {
             pill.addEventListener('click', () => {

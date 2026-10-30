@@ -1,19 +1,21 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container-fluid px-0">
+<div class="container-fluid px-0" id="configPanelRoot" data-operacion-url="{% url 'configuracion_operacion' %}">
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
         <div>
             <h2 class="fw-bold mb-1 text-white">Configuración del Sistema POS</h2>
-            <p class="text-secondary mb-0">Parámetros de la empresa, dispositivos de impresión térmica de 80mm y terminales.</p>
+            <p class="text-secondary mb-0">Parámetros de la empresa, dispositivos de impresión térmica de 80mm y terminales persistidos en PostgreSQL.</p>
         </div>
         <div class="d-flex gap-2">
-            <button class="btn btn-warning fw-bold d-flex align-items-center gap-2 shadow" onclick="alert('Configuración guardada en memoria local.')">
+            <button type="button" class="btn btn-warning fw-bold d-flex align-items-center gap-2 shadow" id="btnGuardarConfiguracion">
                 <i class="bi bi-save-fill"></i>
                 <span>GUARDAR CAMBIOS</span>
             </button>
         </div>
     </div>
+
+    <div class="alert d-none mb-4 fw-semibold" id="configFeedbackAlert" role="alert"></div>
 
     <!-- Banner de Diagnóstico de Base de Datos -->
     <div class="alert bg-dark border-secondary p-3 mb-4 rounded-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
@@ -40,106 +42,176 @@
                 </span>
             {% else %}
                 <span class="badge bg-secondary px-3 py-2 fw-bold font-monospace">
-                    <i class="bi bi-hdd-fill me-1"></i> MODO FALLBACK LOCAL (SQLITE)
+                    <i class="bi bi-hdd-fill me-1"></i> MOTOR LOCAL ACTIVO
                 </span>
             {% endif %}
         </div>
     </div>
 
-    <div class="row g-4">
-        <!-- Tarjeta 1: Datos de la Empresa / Parque -->
-        <div class="col-xl-6">
-            <div class="card bg-dark border-secondary p-4 rounded-4 h-100">
-                <h5 class="fw-bold text-white mb-3">
-                    <i class="bi bi-building text-warning me-2"></i>Datos del Emisor y Parque
-                </h5>
-                <div class="row g-3">
-                    <div class="col-12">
-                        <label class="form-label small text-secondary fw-bold">NOMBRE DE FANTASÍA</label>
-                        <input type="text" class="form-control bg-dark border-secondary text-white" value="{{ config.nombre_parque }}">
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label small text-secondary fw-bold">RAZÓN SOCIAL</label>
-                        <input type="text" class="form-control bg-dark border-secondary text-white" value="{{ config.razon_social }}">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label small text-secondary fw-bold">RUT EMPRESA</label>
-                        <input type="text" class="form-control bg-dark border-secondary text-white font-monospace" value="{{ config.rut }}">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label small text-secondary fw-bold">TELÉFONO DE CONTACTO</label>
-                        <input type="text" class="form-control bg-dark border-secondary text-white" value="{{ config.telefono }}">
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label small text-secondary fw-bold">DIRECCIÓN FÍSICA</label>
-                        <input type="text" class="form-control bg-dark border-secondary text-white" value="{{ config.direccion }}">
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Tarjeta 2: Impresoras Térmicas de Red y Periféricos -->
-        <div class="col-xl-6">
-            <div class="card bg-dark border-secondary p-4 rounded-4 h-100">
-                <h5 class="fw-bold text-white mb-3">
-                    <i class="bi bi-printer text-info me-2"></i>Impresoras Térmicas y Periféricos
-                </h5>
-                <div class="d-flex flex-column gap-3">
-                    <div class="p-3 bg-dark rounded-3 border border-secondary">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="fw-bold text-white">Ticketera de Boletas (Caja Principal)</span>
-                            <span class="badge bg-success">Conectada</span>
+    <form id="formConfiguracionPOS" onsubmit="return false;">
+        <div class="row g-4">
+            <!-- Tarjeta 1: Datos de la Empresa / Parque -->
+            <div class="col-xl-6">
+                <div class="card bg-dark border-secondary p-4 rounded-4 h-100">
+                    <h5 class="fw-bold text-white mb-3">
+                        <i class="bi bi-building text-warning me-2"></i>Datos del Emisor y Parque
+                    </h5>
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label small text-secondary fw-bold" for="cfgNombreParque">NOMBRE DE FANTASÍA</label>
+                            <input type="text" id="cfgNombreParque" class="form-control bg-dark border-secondary text-white" value="{{ config.nombre_parque }}" required>
                         </div>
-                        <input type="text" class="form-control form-control-sm bg-dark border-secondary text-secondary" value="{{ config.impresora_tickets }}">
-                    </div>
-
-                    <div class="p-3 bg-dark rounded-3 border border-secondary">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="fw-bold text-warning">Impresora Cocina (KDS Comandas)</span>
-                            <span class="badge bg-success">IP 192.168.1.50</span>
+                        <div class="col-md-4">
+                            <label class="form-label small text-secondary fw-bold" for="cfgTerminalCaja">TERMINAL CAJA</label>
+                            <input type="text" id="cfgTerminalCaja" class="form-control bg-dark border-secondary text-warning font-monospace fw-bold" value="{{ config.terminal_caja }}" required>
                         </div>
-                        <input type="text" class="form-control form-control-sm bg-dark border-secondary text-secondary" value="{{ config.impresora_cocina }}">
-                    </div>
-
-                    <div class="p-3 bg-dark rounded-3 border border-secondary">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="fw-bold text-info">Impresora Bar (Líquidos Comandas)</span>
-                            <span class="badge bg-success">IP 192.168.1.51</span>
+                        <div class="col-12">
+                            <label class="form-label small text-secondary fw-bold" for="cfgRazonSocial">RAZÓN SOCIAL</label>
+                            <input type="text" id="cfgRazonSocial" class="form-control bg-dark border-secondary text-white" value="{{ config.razon_social }}" required>
                         </div>
-                        <input type="text" class="form-control form-control-sm bg-dark border-secondary text-secondary" value="{{ config.impresora_bar }}">
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Tarjeta 3: Parámetros del POS y Pantalla -->
-        <div class="col-12">
-            <div class="card bg-dark border-secondary p-4 rounded-4">
-                <h5 class="fw-bold text-white mb-3">
-                    <i class="bi bi-sliders text-success me-2"></i>Preferencias de Interfaz Táctil y Facturación
-                </h5>
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="ivaCheck" checked>
-                            <label class="form-check-label text-white" for="ivaCheck">Precios mostrados con IVA incluido (19%)</label>
+                        <div class="col-md-6">
+                            <label class="form-label small text-secondary fw-bold" for="cfgRut">RUT EMPRESA</label>
+                            <input type="text" id="cfgRut" class="form-control bg-dark border-secondary text-white font-monospace" value="{{ config.rut }}" required>
                         </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="audioCheck" checked>
-                            <label class="form-check-label text-white" for="audioCheck">Alerta acústica al recibir nueva comanda</label>
+                        <div class="col-md-6">
+                            <label class="form-label small text-secondary fw-bold" for="cfgTelefono">TELÉFONO DE CONTACTO</label>
+                            <input type="text" id="cfgTelefono" class="form-control bg-dark border-secondary text-white" value="{{ config.telefono }}">
                         </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="resCheck" checked>
-                            <label class="form-check-label text-white" for="resCheck">Modo optimizado Full HD (1920x1080)</label>
+                        <div class="col-12">
+                            <label class="form-label small text-secondary fw-bold" for="cfgDireccion">DIRECCIÓN FÍSICA</label>
+                            <input type="text" id="cfgDireccion" class="form-control bg-dark border-secondary text-white" value="{{ config.direccion }}" required>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <!-- Tarjeta 2: Impresoras Térmicas de Red y Periféricos -->
+            <div class="col-xl-6">
+                <div class="card bg-dark border-secondary p-4 rounded-4 h-100">
+                    <h5 class="fw-bold text-white mb-3">
+                        <i class="bi bi-printer text-info me-2"></i>Impresoras Térmicas y Periféricos
+                    </h5>
+                    <div class="d-flex flex-column gap-3">
+                        <div class="p-3 bg-dark rounded-3 border border-secondary">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="fw-bold text-white mb-0" for="cfgImpresoraTickets">Ticketera de Boletas (Caja Principal)</label>
+                                <span class="badge bg-success">Conectada</span>
+                            </div>
+                            <input type="text" id="cfgImpresoraTickets" class="form-control form-control-sm bg-dark border-secondary text-white" value="{{ config.impresora_tickets }}">
+                        </div>
+
+                        <div class="p-3 bg-dark rounded-3 border border-secondary">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="fw-bold text-warning mb-0" for="cfgImpresoraCocina">Impresora Cocina (KDS Comandas)</label>
+                                <span class="badge bg-success">Red LAN POS</span>
+                            </div>
+                            <input type="text" id="cfgImpresoraCocina" class="form-control form-control-sm bg-dark border-secondary text-white" value="{{ config.impresora_cocina }}">
+                        </div>
+
+                        <div class="p-3 bg-dark rounded-3 border border-secondary">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="fw-bold text-info mb-0" for="cfgImpresoraBar">Impresora Bar (Líquidos Comandas)</label>
+                                <span class="badge bg-success">Red LAN POS</span>
+                            </div>
+                            <input type="text" id="cfgImpresoraBar" class="form-control form-control-sm bg-dark border-secondary text-white" value="{{ config.impresora_bar }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tarjeta 3: Parámetros del POS y Pantalla -->
+            <div class="col-12">
+                <div class="card bg-dark border-secondary p-4 rounded-4">
+                    <h5 class="fw-bold text-white mb-3">
+                        <i class="bi bi-sliders text-success me-2"></i>Preferencias de Interfaz Táctil y Facturación
+                    </h5>
+                    <div class="row g-3 align-items-center">
+                        <div class="col-md-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="ivaCheck" {% if config.iva_incluido %}checked{% endif %}>
+                                <label class="form-check-label text-white" for="ivaCheck">Precios con IVA incluido</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-secondary fw-bold mb-1" for="cfgIvaPorcentaje">TASA IVA (%)</label>
+                            <input type="number" step="0.01" min="0" max="100" id="cfgIvaPorcentaje" class="form-control form-control-sm bg-dark border-secondary text-white font-monospace" value="{{ config.iva_porcentaje|default:'19.00' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="audioCheck" {% if config.alerta_acustica %}checked{% endif %}>
+                                <label class="form-check-label text-white" for="audioCheck">Alerta acústica en comandas</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="resCheck" {% if config.modo_full_hd %}checked{% endif %}>
+                                <label class="form-check-label text-white" for="resCheck">Modo optimizado Full HD</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-    </div>
+    </form>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const root = document.getElementById('configPanelRoot');
+    const endpointUrl = root?.dataset.operacionUrl || '/configuracion/operacion/';
+    const btnSave = document.getElementById('btnGuardarConfiguracion');
+    const feedbackEl = document.getElementById('configFeedbackAlert');
+
+    function showFeedback(msg, isError) {
+        if (typeof window.mostrarNotificacionPOS === 'function') {
+            window.mostrarNotificacionPOS(msg, isError ? 'danger' : 'success');
+        }
+        if (feedbackEl) {
+            feedbackEl.textContent = msg;
+            feedbackEl.className = `alert ${isError ? 'alert-danger' : 'alert-success'} mb-4 fw-semibold`;
+        }
+    }
+
+    btnSave?.addEventListener('click', async () => {
+        const payload = {
+            nombre_parque: document.getElementById('cfgNombreParque')?.value.trim() || '',
+            terminal_caja: document.getElementById('cfgTerminalCaja')?.value.trim() || 'CAJA-01',
+            razon_social: document.getElementById('cfgRazonSocial')?.value.trim() || '',
+            rut: document.getElementById('cfgRut')?.value.trim() || '',
+            telefono: document.getElementById('cfgTelefono')?.value.trim() || '',
+            direccion: document.getElementById('cfgDireccion')?.value.trim() || '',
+            impresora_tickets: document.getElementById('cfgImpresoraTickets')?.value.trim() || '',
+            impresora_cocina: document.getElementById('cfgImpresoraCocina')?.value.trim() || '',
+            impresora_bar: document.getElementById('cfgImpresoraBar')?.value.trim() || '',
+            iva_incluido: Boolean(document.getElementById('ivaCheck')?.checked),
+            iva_porcentaje: document.getElementById('cfgIvaPorcentaje')?.value || '19.00',
+            alerta_acustica: Boolean(document.getElementById('audioCheck')?.checked),
+            modo_full_hd: Boolean(document.getElementById('resCheck')?.checked),
+        };
+
+        btnSave.disabled = true;
+        try {
+            const resp = await fetch(endpointUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': typeof getCsrfToken === 'function' ? getCsrfToken() : '',
+                },
+                body: JSON.stringify(payload),
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.ok) {
+                showFeedback(data.error || 'No fue posible guardar la configuración.', true);
+                return;
+            }
+            showFeedback(data.mensaje || 'Configuración guardada correctamente en PostgreSQL.', false);
+        } catch (err) {
+            showFeedback('Error de red al guardar la configuración del sistema.', true);
+        } finally {
+            btnSave.disabled = false;
+        }
+    });
+});
+</script>
 {% endblock %}

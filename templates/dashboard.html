@@ -7,27 +7,31 @@
     <div class="pos-view-header d-flex flex-wrap justify-content-between align-items-center mb-3 pb-3">
         <div>
             <div class="d-flex align-items-center gap-2">
-                <h2 class="pos-view-title mb-0">Panel Principal — Parque Safari</h2>
+                <h2 class="pos-view-title mb-0">Panel Principal — {{ config.nombre_parque|default:'Parque Safari' }}</h2>
                 <span class="badge bg-success bg-opacity-25 text-success border border-success font-monospace">EN LÍNEA</span>
             </div>
             <div class="text-secondary small mt-1">
-                <i class="bi bi-calendar3 me-1"></i> {{ fecha_actual }} &bull; 
+                <i class="bi bi-calendar3 me-1"></i> {{ fecha_actual }} &bull;
                 <span class="text-warning fw-semibold">Terminal {{ config.terminal_caja }}</span>
             </div>
         </div>
         <div class="d-flex gap-2 mt-2 mt-md-0">
+            {% if 'pos' in permisos_usuario %}
             <a href="{% url 'pos' %}" class="btn btn-warning fw-bold px-4 shadow-sm d-flex align-items-center gap-2">
                 <i class="bi bi-cart-plus-fill fs-5"></i>
                 <span>NUEVA VENTA POS</span>
             </a>
+            {% endif %}
+            {% if 'mesas' in permisos_usuario %}
             <a href="{% url 'mesas' %}" class="btn btn-outline-info fw-bold px-3 d-flex align-items-center gap-2">
                 <i class="bi bi-layout-text-window-reverse"></i>
                 <span>VER MESAS</span>
             </a>
+            {% endif %}
         </div>
     </div>
 
-    <!-- Indicadores Visuales / KPIs del Día (Diseño limpio y equilibrado) -->
+    <!-- Indicadores Visuales / KPIs del Día (Conectados a PostgreSQL) -->
     <div class="pos-kpi-grid mb-4">
         <div class="pos-kpi-card">
             <div class="pos-kpi-icon bg-success bg-opacity-15 text-success">
@@ -47,7 +51,7 @@
             <div class="pos-kpi-info">
                 <h3>Ticket Promedio</h3>
                 <div class="pos-kpi-value font-monospace">{{ estadisticas.ticket_promedio }}</div>
-                <div class="pos-kpi-sub">+12% vs. periodo previo</div>
+                <div class="pos-kpi-sub">Promedio por operación pagada</div>
             </div>
         </div>
 
@@ -80,12 +84,12 @@
             <div class="pos-kpi-info">
                 <h3>Ocupación Salón</h3>
                 <div class="pos-kpi-value text-danger font-monospace">{{ total_mesas_ocupadas }} / {{ total_mesas }}</div>
-                <div class="pos-kpi-sub">Capacidad al 42%</div>
+                <div class="pos-kpi-sub">Capacidad al {{ estadisticas.porcentaje_ocupacion|default:0 }}%</div>
             </div>
         </div>
     </div>
 
-    <!-- Sección de Accesos Rápidos Organizados con Menú Colapsable para des-saturar la pantalla -->
+    <!-- Sección de Accesos Rápidos Organizados con Menú Colapsable -->
     <div class="card pos-card p-3 mb-4">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div class="d-flex align-items-center gap-2">
@@ -100,7 +104,7 @@
 
         <div class="collapse show" id="collapseModulos">
             <div class="row g-2">
-                <!-- POS -->
+                {% if 'pos' in permisos_usuario %}
                 <div class="col-6 col-md-3">
                     <a href="{% url 'pos' %}" class="text-decoration-none">
                         <div class="p-3 rounded-3 border border-secondary bg-dark hover-shadow text-white h-100 d-flex align-items-center gap-3">
@@ -112,7 +116,8 @@
                         </div>
                     </a>
                 </div>
-                <!-- Cocina -->
+                {% endif %}
+                {% if 'cocina' in permisos_usuario %}
                 <div class="col-6 col-md-3">
                     <a href="{% url 'cocina' %}" class="text-decoration-none">
                         <div class="p-3 rounded-3 border border-secondary bg-dark hover-shadow text-white h-100 d-flex align-items-center gap-3">
@@ -124,7 +129,8 @@
                         </div>
                     </a>
                 </div>
-                <!-- Bar -->
+                {% endif %}
+                {% if 'bar' in permisos_usuario %}
                 <div class="col-6 col-md-3">
                     <a href="{% url 'bar' %}" class="text-decoration-none">
                         <div class="p-3 rounded-3 border border-secondary bg-dark hover-shadow text-white h-100 d-flex align-items-center gap-3">
@@ -136,19 +142,21 @@
                         </div>
                     </a>
                 </div>
-                <!-- Mesas -->
+                {% endif %}
+                {% if 'mesas' in permisos_usuario %}
                 <div class="col-6 col-md-3">
                     <a href="{% url 'mesas' %}" class="text-decoration-none">
                         <div class="p-3 rounded-3 border border-secondary bg-dark hover-shadow text-white h-100 d-flex align-items-center gap-3">
                             <div class="p-2 rounded-3 bg-secondary text-white fs-3"><i class="bi bi-layout-text-window-reverse"></i></div>
                             <div>
                                 <div class="fw-bold small">Mapa de Mesas</div>
-                                <small class="text-secondary" style="font-size: 0.72rem;">12 mesas salón</small>
+                                <small class="text-secondary" style="font-size: 0.72rem;">{{ total_mesas }} mesas salón</small>
                             </div>
                         </div>
                     </a>
                 </div>
-                <!-- Distribución -->
+                {% endif %}
+                {% if 'distribucion' in permisos_usuario %}
                 <div class="col-6 col-md-3">
                     <a href="{% url 'distribucion' %}" class="text-decoration-none">
                         <div class="p-3 rounded-3 border border-secondary bg-dark hover-shadow text-white h-100 d-flex align-items-center gap-3">
@@ -160,7 +168,8 @@
                         </div>
                     </a>
                 </div>
-                <!-- Productos -->
+                {% endif %}
+                {% if 'productos' in permisos_usuario %}
                 <div class="col-6 col-md-3">
                     <a href="{% url 'productos' %}" class="text-decoration-none">
                         <div class="p-3 rounded-3 border border-secondary bg-dark hover-shadow text-white h-100 d-flex align-items-center gap-3">
@@ -172,7 +181,8 @@
                         </div>
                     </a>
                 </div>
-                <!-- Fiados -->
+                {% endif %}
+                {% if 'fiados' in permisos_usuario %}
                 <div class="col-6 col-md-3">
                     <a href="{% url 'fiados' %}" class="text-decoration-none">
                         <div class="p-3 rounded-3 border border-secondary bg-dark hover-shadow text-white h-100 d-flex align-items-center gap-3">
@@ -184,7 +194,8 @@
                         </div>
                     </a>
                 </div>
-                <!-- Estadísticas -->
+                {% endif %}
+                {% if 'estadisticas' in permisos_usuario %}
                 <div class="col-6 col-md-3">
                     <a href="{% url 'estadisticas' %}" class="text-decoration-none">
                         <div class="p-3 rounded-3 border border-secondary bg-dark hover-shadow text-white h-100 d-flex align-items-center gap-3">
@@ -196,29 +207,32 @@
                         </div>
                     </a>
                 </div>
+                {% endif %}
             </div>
         </div>
     </div>
 
-    <!-- Resumen Operativo de Salón (12 Mesas) -->
+    <!-- Resumen Operativo de Salón -->
     <div class="card pos-card p-3 rounded-4">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h6 class="fw-bold text-white mb-0 d-flex align-items-center gap-2">
                 <i class="bi bi-table text-info"></i>
-                <span>Estado Rápido de Salón (12 Mesas)</span>
+                <span>Estado Rápido de Salón ({{ total_mesas }} Mesas)</span>
             </h6>
+            {% if 'mesas' in permisos_usuario %}
             <a href="{% url 'mesas' %}" class="btn btn-sm btn-outline-info">Ver Plano Completo</a>
+            {% endif %}
         </div>
         <div class="row g-2">
             {% for mesa in mesas %}
             <div class="col-4 col-md-2">
-                <div class="p-2 rounded-3 border {% if mesa.estado == 'Ocupada' %}border-danger bg-danger bg-opacity-10 text-light{% else %}border-success bg-success bg-opacity-10 text-light{% endif %} text-center">
+                <div class="p-2 rounded-3 border {% if mesa.estado == 'Ocupada' %}border-danger bg-danger bg-opacity-10 text-light{% elif mesa.estado == 'Reservada' %}border-warning bg-warning bg-opacity-10 text-light{% else %}border-success bg-success bg-opacity-10 text-light{% endif %} text-center">
                     <div class="fw-bold small">{{ mesa.numero }}</div>
-                    <small class="d-block {% if mesa.estado == 'Ocupada' %}text-danger fw-bold{% else %}text-success{% endif %}" style="font-size: 0.7rem;">
+                    <small class="d-block {% if mesa.estado == 'Ocupada' %}text-danger fw-bold{% elif mesa.estado == 'Reservada' %}text-warning fw-bold{% else %}text-success{% endif %}" style="font-size: 0.7rem;">
                         {{ mesa.estado }}
                     </small>
                     <small class="text-secondary font-monospace" style="font-size: 0.65rem;">
-                        {% if mesa.estado == 'Ocupada' %}{{ mesa.tiempo_transcurrido }}{% else %}Libre{% endif %}
+                        {% if mesa.estado == 'Ocupada' %}{{ mesa.tiempo_transcurrido }} &bull; {{ mesa.consumo_formateado }}{% else %}Libre{% endif %}
                     </small>
                 </div>
             </div>

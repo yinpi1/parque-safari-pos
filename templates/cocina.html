@@ -14,7 +14,7 @@
                     <h2 class="pos-view-title mb-0">Cocina KDS (Kitchen Display System)</h2>
                     <span class="badge bg-danger bg-opacity-25 text-danger font-monospace px-2 py-1">PANTALLA TÁCTIL</span>
                 </div>
-                <p class="pos-view-subtitle mb-0">Comandas en vivo, control de tiempos de espera y despacho rápido</p>
+                <p class="pos-view-subtitle mb-0">Comandas en vivo sincronizadas con PostgreSQL, control de tiempos y despacho</p>
             </div>
         </div>
 
@@ -42,7 +42,7 @@
                     <button class="filter-pill pill-atrasado" data-filter-status="atrasados">
                         <i class="bi bi-exclamation-triangle-fill text-danger me-1"></i>
                         <span>Atrasados (>15m)</span>
-                        <span class="pill-counter" id="countAtrasados">0</span>
+                        <span class="pill-counter" id="countAtrasados">{{ total_atrasados|default:0 }}</span>
                     </button>
                     <button class="filter-pill" data-filter-status="Pendiente">
                         <i class="bi bi-hourglass-split text-danger me-1"></i>
@@ -91,7 +91,7 @@
     </div>
 
     <!-- Grid de Tarjetas KDS -->
-    <div class="pos-kds-grid" id="kdsGrid">
+    <div class="pos-kds-grid" id="kdsGrid" data-comanda-url="{% url 'actualizar_estado_comanda' %}">
         {% for ped in pedidos %}
         <div class="pos-kds-card {% if ped.urgencia == 'urgente' %}urgente{% elif ped.urgencia == 'advertencia' %}advertencia{% endif %}"
              data-pedido-id="{{ ped.id }}"
@@ -103,7 +103,7 @@
              data-ubicacion="{{ ped.ubicacion }}"
              data-mozo="{{ ped.mozo }}"
              data-search-text="{{ ped.id }} {{ ped.venta_num }} {{ ped.ubicacion }} {{ ped.mozo }} {% for p in ped.productos %}{{ p.nombre }} {{ p.nota }} {% endfor %} {{ ped.comentarios }}">
-            
+
             <!-- Cabecera de la Comanda -->
             <div class="pos-kds-header">
                 <div>
@@ -155,19 +155,19 @@
                 {% endif %}
             </div>
 
-            <!-- Pie con Acciones KDS Táctiles -->
+            <!-- Pie con Acciones KDS Táctiles conectadas a PostgreSQL -->
             <div class="pos-kds-footer">
                 {% if ped.estado == 'Pendiente' %}
-                    <button class="btn btn-warning fw-bold w-100 kds-action-btn" data-action="preparar" style="grid-column: span 2;">
+                    <button type="button" class="btn btn-warning fw-bold w-100 kds-action-btn" data-codigo="{{ ped.id }}" data-area="COCINA" data-action="preparar" style="grid-column: span 2;">
                         <i class="bi bi-play-circle-fill me-1"></i> Iniciar Preparación
                     </button>
                 {% elif ped.estado == 'En preparación' %}
-                    <button class="btn btn-success fw-bold w-100 kds-action-btn" data-action="completar" style="grid-column: span 2;">
+                    <button type="button" class="btn btn-success fw-bold w-100 kds-action-btn" data-codigo="{{ ped.id }}" data-area="COCINA" data-action="completar" style="grid-column: span 2;">
                         <i class="bi bi-check2-circle me-1"></i> Marcar como Preparado
                     </button>
                 {% else %}
-                    <button class="btn btn-secondary disabled w-100" style="grid-column: span 2;">
-                        <i class="bi bi-check-all me-1"></i> Preparado (En pasaplatos)
+                    <button type="button" class="btn btn-outline-success fw-bold w-100 kds-action-btn" data-codigo="{{ ped.id }}" data-area="COCINA" data-action="entregar" style="grid-column: span 2;">
+                        <i class="bi bi-check-all me-1"></i> Despachar / Entregado
                     </button>
                 {% endif %}
             </div>
@@ -176,13 +176,13 @@
         {% endfor %}
     </div>
 
-    <!-- Empty State: cuando no hay resultados para el filtro seleccionado -->
-    <div class="pos-empty-filter-state" id="kdsEmptyState" style="display: none;">
+    <!-- Empty State -->
+    <div class="pos-empty-filter-state" id="kdsEmptyState" {% if pedidos %}style="display: none;"{% endif %}>
         <div class="empty-icon text-secondary">
             <i class="bi bi-funnel"></i>
         </div>
-        <h4 class="fw-bold text-white mb-2">No hay comandas que coincidan con el filtro</h4>
-        <p class="text-secondary mb-3">Intenta seleccionando otro estado, limpiando el texto de búsqueda o cambiando la ubicación.</p>
+        <h4 class="fw-bold text-white mb-2">No hay comandas activas para el filtro seleccionado</h4>
+        <p class="text-secondary mb-3">Las nuevas ventas con platos calientes aparecerán aquí automáticamente.</p>
         <button class="btn btn-warning fw-bold px-4" onclick="resetKdsFilters()">
             <i class="bi bi-arrow-counterclockwise me-1"></i> Restablecer Filtros
         </button>
@@ -201,24 +201,47 @@
         const locSelect = document.getElementById('kdsLocationFilter');
         const searchInput = document.getElementById('kdsSearchInput');
         const btnReset = document.getElementById('btnResetKdsFilters');
-        const cards = document.querySelectorAll('#kdsGrid .pos-kds-card');
         const emptyState = document.getElementById('kdsEmptyState');
-
-        // Calcular conteo de atrasados (>15 min o urgencia alta)
-        let atrasadosCount = 0;
-        cards.forEach(card => {
-            const min = parseInt(card.dataset.minutos || '0');
-            const urg = card.dataset.urgencia;
-            if ((min >= 15 || urg === 'urgente' || urg === 'advertencia') && card.dataset.estado !== 'Preparado') {
-                atrasadosCount++;
-            }
-        });
-        const countAtrasadosEl = document.getElementById('countAtrasados');
-        if (countAtrasadosEl) countAtrasadosEl.textContent = atrasadosCount;
 
         let currentStatusFilter = 'todos';
 
+        function updateCountersFromDom() {
+            const activeCards = Array.from(document.querySelectorAll('#kdsGrid .pos-kds-card')).filter(
+                c => c.dataset.estado !== 'Entregado'
+            );
+            let pendientes = 0;
+            let enPrep = 0;
+            let preparados = 0;
+            let atrasados = 0;
+
+            activeCards.forEach(card => {
+                const st = card.dataset.estado;
+                const min = parseInt(card.dataset.minutos || '0', 10);
+                const urg = card.dataset.urgencia;
+                if (st === 'Pendiente') pendientes++;
+                else if (st === 'En preparación') enPrep++;
+                else if (st === 'Preparado') preparados++;
+
+                if ((min >= 15 || urg === 'urgente' || urg === 'advertencia') && st !== 'Preparado' && st !== 'Entregado') {
+                    atrasados++;
+                }
+            });
+
+            const elAll = document.getElementById('countAll');
+            const elAtr = document.getElementById('countAtrasados');
+            const elPend = document.getElementById('countPendientes');
+            const elPrep = document.getElementById('countPrep');
+            const elListos = document.getElementById('countListos');
+
+            if (elAll) elAll.textContent = activeCards.length;
+            if (elAtr) elAtr.textContent = atrasados;
+            if (elPend) elPend.textContent = pendientes;
+            if (elPrep) elPrep.textContent = enPrep;
+            if (elListos) elListos.textContent = preparados;
+        }
+
         function applyFilter() {
+            const cards = document.querySelectorAll('#kdsGrid .pos-kds-card');
             const selectedLocation = locSelect ? locSelect.value : 'todas';
             const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
@@ -226,12 +249,16 @@
 
             cards.forEach(card => {
                 const cardEstado = card.dataset.estado;
+                if (cardEstado === 'Entregado') {
+                    card.style.display = 'none';
+                    return;
+                }
+
                 const cardModalidad = card.dataset.modalidad;
-                const cardMinutos = parseInt(card.dataset.minutos || '0');
+                const cardMinutos = parseInt(card.dataset.minutos || '0', 10);
                 const cardUrgencia = card.dataset.urgencia;
                 const cardText = (card.dataset.searchText || '').toLowerCase();
 
-                // 1. Filtro de Estado
                 let matchesStatus = true;
                 if (currentStatusFilter === 'atrasados') {
                     matchesStatus = (cardMinutos >= 15 || cardUrgencia === 'urgente' || cardUrgencia === 'advertencia') && cardEstado !== 'Preparado';
@@ -239,13 +266,11 @@
                     matchesStatus = cardEstado === currentStatusFilter;
                 }
 
-                // 2. Filtro de Ubicación
                 let matchesLocation = true;
                 if (selectedLocation !== 'todas') {
                     matchesLocation = cardModalidad === selectedLocation;
                 }
 
-                // 3. Filtro de Búsqueda
                 let matchesSearch = true;
                 if (query.length > 0) {
                     matchesSearch = cardText.includes(query);
@@ -264,7 +289,27 @@
             }
         }
 
-        // Event listeners para pills
+        updateCountersFromDom();
+        applyFilter();
+
+        window.refreshKdsBoardState = function(serverCounters) {
+            if (serverCounters) {
+                const elAll = document.getElementById('countAll');
+                const elAtr = document.getElementById('countAtrasados');
+                const elPend = document.getElementById('countPendientes');
+                const elPrep = document.getElementById('countPrep');
+                const elListos = document.getElementById('countListos');
+                if (elAll && typeof serverCounters.todos === 'number') elAll.textContent = serverCounters.todos;
+                if (elAtr && typeof serverCounters.atrasados === 'number') elAtr.textContent = serverCounters.atrasados;
+                if (elPend && typeof serverCounters.pendientes === 'number') elPend.textContent = serverCounters.pendientes;
+                if (elPrep && typeof serverCounters.en_preparacion === 'number') elPrep.textContent = serverCounters.en_preparacion;
+                if (elListos && typeof serverCounters.listos === 'number') elListos.textContent = serverCounters.listos;
+            } else {
+                updateCountersFromDom();
+            }
+            applyFilter();
+        };
+
         pills.forEach(pill => {
             pill.addEventListener('click', () => {
                 pills.forEach(p => p.classList.remove('active'));
@@ -274,22 +319,9 @@
             });
         });
 
-        // Event listener para select de ubicación
-        if (locSelect) {
-            locSelect.addEventListener('change', applyFilter);
-        }
-
-        // Event listener para búsqueda
-        if (searchInput) {
-            searchInput.addEventListener('input', applyFilter);
-        }
-
-        // Botón reset
-        if (btnReset) {
-            btnReset.addEventListener('click', () => {
-                window.resetKdsFilters();
-            });
-        }
+        if (locSelect) locSelect.addEventListener('change', applyFilter);
+        if (searchInput) searchInput.addEventListener('input', applyFilter);
+        if (btnReset) btnReset.addEventListener('click', () => window.resetKdsFilters());
 
         window.resetKdsFilters = function() {
             currentStatusFilter = 'todos';

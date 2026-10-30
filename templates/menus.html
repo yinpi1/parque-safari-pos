@@ -5,10 +5,10 @@
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
         <div>
             <h2 class="fw-bold mb-1 text-white">Módulo de Menús y Combos</h2>
-            <p class="text-secondary mb-0">Gestión de paquetes promocionales, combos familiares y packs de aventura.</p>
+            <p class="text-secondary mb-0">Gestión persistente en PostgreSQL de paquetes promocionales y su descomposición hacia Cocina (KDS) y Bar (BDS).</p>
         </div>
         <div class="d-flex gap-2">
-            <button class="btn btn-warning fw-bold d-flex align-items-center gap-2 px-3 shadow" data-bs-toggle="modal" data-bs-target="#modalNuevoMenu">
+            <button class="btn btn-warning fw-bold d-flex align-items-center gap-2 px-3 shadow" onclick="abrirModalMenuNuevo()">
                 <i class="bi bi-stars fs-5"></i>
                 <span>NUEVO MENÚ / COMBO</span>
             </button>
@@ -19,7 +19,7 @@
     <div class="row g-3 mb-4">
         {% for m in menus %}
         <div class="col-md-6 col-xl-3">
-            <div class="card bg-dark border-secondary h-100 p-3 rounded-4 position-relative">
+            <div class="card bg-dark border-secondary h-100 p-3 rounded-4 position-relative d-flex flex-column">
                 <span class="badge bg-success position-absolute top-0 end-0 m-3 px-3 py-1">
                     {{ m.ahorro }}
                 </span>
@@ -27,31 +27,52 @@
                     <i class="bi bi-stars fs-3"></i>
                 </div>
                 <h5 class="fw-bold text-white mb-1">{{ m.nombre }}</h5>
-                <span class="badge bg-secondary font-monospace mb-2" style="width: fit-content;">{{ m.codigo }}</span>
-                <p class="text-secondary small flex-grow-1">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span class="badge bg-secondary font-monospace">{{ m.codigo }}</span>
+                    <span class="badge {{ m.badge_tipo }}">{{ m.destino }}</span>
+                </div>
+                <p class="text-secondary small mb-2">
                     <strong class="text-light">Incluye:</strong> {{ m.productos_incluidos }}
                 </p>
+                <div class="small mb-3 flex-grow-1">
+                    <div class="text-secondary fw-bold mb-1" style="font-size: 0.72rem;">DESGLOSE DE COMANDAS:</div>
+                    {% for comp in m.componentes %}
+                    <div class="d-flex justify-content-between align-items-center py-1 border-bottom border-secondary border-opacity-25">
+                        <span class="text-light" style="font-size: 0.76rem;">{{ comp.cantidad }}x {{ comp.nombre }}</span>
+                        <span class="badge {% if comp.destino == 'COCINA' %}badge-cocina{% elif comp.destino == 'BAR' %}badge-bar{% else %}badge-listo{% endif %}" style="font-size: 0.65rem;">{{ comp.destino }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
                 <div class="border-top border-secondary pt-3 d-flex justify-content-between align-items-center">
                     <div>
                         <span class="text-secondary small d-block">Precio Combo:</span>
                         <span class="fw-bold fs-4 text-info font-monospace">{{ m.precio_formateado }}</span>
                     </div>
                     <div class="btn-group">
-                        <button class="btn btn-outline-light btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuevoMenu" title="Editar">
+                        <button type="button" class="btn btn-outline-light btn-sm" title="Editar"
+                                onclick="abrirModalMenuEditar({{ m.id }}, '{{ m.codigo|escapejs }}', '{{ m.nombre|escapejs }}', '{{ m.productos_incluidos|escapejs }}', {{ m.precio }}, {{ m.ahorro_estimado }}, '{{ m.disponibilidad|escapejs }}', '{{ m.estado|escapejs }}')">
                             <i class="bi bi-pencil-fill"></i>
                         </button>
-                        <button class="btn btn-outline-danger btn-sm" title="Eliminar" onclick="alert('Acción simulada: combo desactivado.')">
-                            <i class="bi bi-trash-fill"></i>
+                        <button type="button" class="btn {% if m.estado == 'Activo' %}btn-outline-danger{% else %}btn-outline-success{% endif %} btn-sm"
+                                title="{% if m.estado == 'Activo' %}Desactivar{% else %}Activar{% endif %}"
+                                onclick="cambiarEstadoMenu({{ m.id }}, '{% if m.estado == 'Activo' %}Inactivo{% else %}Activo{% endif %}')">
+                            <i class="bi {% if m.estado == 'Activo' %}bi-slash-circle{% else %}bi-check-circle{% endif %}"></i>
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert bg-dark border-secondary text-secondary text-center py-4">
+                No existen menús o combos registrados aún.
             </div>
         </div>
         {% endfor %}
     </div>
 
     <!-- Tabla de Control de Menús -->
-    <h5 class="fw-bold text-white mb-3">Detalle Operativo de Combos</h5>
+    <h5 class="fw-bold text-white mb-3">Detalle Operativo de Combos ({{ total_menus }} registrados &bull; {{ total_activos }} activos)</h5>
     <div class="table-responsive">
         <table class="pos-table-custom">
             <thead>
@@ -59,7 +80,8 @@
                     <th>CÓDIGO</th>
                     <th>NOMBRE DEL MENÚ</th>
                     <th>PRODUCTOS ASOCIADOS</th>
-                    <th>HORARIO / DISPONIBILIDAD</th>
+                    <th>ENRUTAMIENTO</th>
+                    <th>HORARIO</th>
                     <th>PRECIO</th>
                     <th>BENEFICIO</th>
                     <th>ESTADO</th>
@@ -69,17 +91,31 @@
             <tbody>
                 {% for m in menus %}
                 <tr>
-                    <td class="font-monospace text-secondary">{{ m.codigo }}</td>
+                    <td class="font-monospace text-light fw-semibold">{{ m.codigo }}</td>
                     <td class="fw-bold text-white">{{ m.nombre }}</td>
                     <td class="text-light small">{{ m.productos_incluidos }}</td>
+                    <td><span class="badge {{ m.badge_tipo }}">{{ m.destino }}</span></td>
                     <td><span class="badge bg-dark border border-secondary text-light">{{ m.disponibilidad }}</span></td>
                     <td class="fw-bold font-monospace text-info">{{ m.precio_formateado }}</td>
                     <td><span class="badge bg-success bg-opacity-25 text-success">{{ m.ahorro }}</span></td>
-                    <td><span class="badge bg-success text-white">Activo</span></td>
+                    <td>
+                        {% if m.estado == 'Activo' %}
+                        <span class="badge bg-success text-white">Activo</span>
+                        {% else %}
+                        <span class="badge bg-secondary text-white">Inactivo</span>
+                        {% endif %}
+                    </td>
                     <td class="text-end">
-                        <button class="btn btn-outline-light btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuevoMenu">
-                            <i class="bi bi-pencil-fill"></i> Editar
-                        </button>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-outline-light btn-sm"
+                                    onclick="abrirModalMenuEditar({{ m.id }}, '{{ m.codigo|escapejs }}', '{{ m.nombre|escapejs }}', '{{ m.productos_incluidos|escapejs }}', {{ m.precio }}, {{ m.ahorro_estimado }}, '{{ m.disponibilidad|escapejs }}', '{{ m.estado|escapejs }}')">
+                                <i class="bi bi-pencil-fill"></i> Editar
+                            </button>
+                            <button type="button" class="btn {% if m.estado == 'Activo' %}btn-outline-danger{% else %}btn-outline-success{% endif %} btn-sm"
+                                    onclick="cambiarEstadoMenu({{ m.id }}, '{% if m.estado == 'Activo' %}Inactivo{% else %}Activo{% endif %}')">
+                                {% if m.estado == 'Activo' %}Desactivar{% else %}Activar{% endif %}
+                            </button>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
@@ -89,7 +125,7 @@
 </div>
 
 <!-- ==========================================================================
-     MODAL DE CREACIÓN / EDICIÓN DE MENÚ (Formulario maqueta)
+     MODAL DE CREACIÓN / EDICIÓN DE MENÚ (PostgreSQL)
      ========================================================================== -->
 <div class="modal fade" id="modalNuevoMenu" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -97,35 +133,60 @@
             <div class="modal-header">
                 <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
                     <i class="bi bi-stars text-warning"></i>
-                    <span>Configuración de Menú / Combo</span>
+                    <span id="modalMenuTitulo">Configuración de Menú / Combo</span>
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
-                <form onsubmit="event.preventDefault(); alert('Menú actualizado en memoria visual.'); bootstrap.Modal.getInstance(document.getElementById('modalNuevoMenu')).hide();">
+                <div id="menuFormError" class="alert alert-danger d-none py-2 small"></div>
+                <form onsubmit="guardarMenuPos(event)">
+                    <input type="hidden" id="menuIdInput" value="">
+                    <input type="hidden" id="menuAccionInput" value="crear">
                     <div class="row g-3">
                         <div class="col-md-4">
-                            <label class="form-label small text-secondary fw-bold">CÓDIGO COMBO</label>
-                            <input type="text" class="form-control bg-dark border-secondary text-white font-monospace" value="MENU-SAF-05" required>
+                            <label class="form-label small text-secondary fw-bold" for="menuCodigoInput">CÓDIGO COMBO</label>
+                            <input type="text" id="menuCodigoInput" class="form-control bg-dark border-secondary text-white font-monospace" placeholder="MENU-SAF-05" required>
                         </div>
                         <div class="col-md-8">
-                            <label class="form-label small text-secondary fw-bold">NOMBRE DEL MENÚ</label>
-                            <input type="text" class="form-control bg-dark border-secondary text-white" placeholder="Ej: Pack Sabana Salvaje" required>
+                            <label class="form-label small text-secondary fw-bold" for="menuNombreInput">NOMBRE DEL MENÚ</label>
+                            <input type="text" id="menuNombreInput" class="form-control bg-dark border-secondary text-white" placeholder="Ej: Pack Sabana Salvaje" required>
                         </div>
 
                         <div class="col-12">
-                            <label class="form-label small text-secondary fw-bold">PRODUCTOS QUE COMPONEN EL MENÚ</label>
-                            <textarea class="form-control bg-dark border-secondary text-white" rows="2" placeholder="Selección o lista de productos combinados..." required></textarea>
-                            <small class="text-secondary">En el siguiente sprint se seleccionarán directamente desde la base de datos de productos.</small>
+                            <label class="form-label small text-secondary fw-bold" for="menuProductosInput">PRODUCTOS QUE COMPONEN EL MENÚ (SEPARADOS POR '+')</label>
+                            <div class="input-group mb-2">
+                                <select id="menuSelectorProductoAux" class="form-select bg-dark border-secondary text-white">
+                                    <option value="">-- Agregar producto del catálogo al desglose --</option>
+                                    {% for p in productos_catalogo %}
+                                    <option value="{{ p.nombre }}">{{ p.nombre }} [{{ p.destino }}]</option>
+                                    {% endfor %}
+                                </select>
+                                <button type="button" class="btn btn-outline-warning fw-bold" onclick="anexarProductoAlCombo()">
+                                    <i class="bi bi-plus-lg"></i> Anexar
+                                </button>
+                            </div>
+                            <textarea id="menuProductosInput" class="form-control bg-dark border-secondary text-white" rows="2" placeholder="Ej: 1x Hamburguesa Safari Doble + 1x Papas Fritas + 1x Bebida Lata 350ml" required></textarea>
+                            <small class="text-secondary">El sistema descompone automáticamente cada ítem hacia Cocina (KDS) y Bar (BDS) al vender el combo.</small>
                         </div>
 
-                        <div class="col-md-6">
-                            <label class="form-label small text-secondary fw-bold">PRECIO COMBO PROMOCIONAL (CLP)</label>
-                            <input type="number" class="form-control bg-dark border-secondary text-white font-monospace" placeholder="10990" required>
+                        <div class="col-md-4">
+                            <label class="form-label small text-secondary fw-bold" for="menuPrecioInput">PRECIO PROMOCIONAL (CLP)</label>
+                            <input type="number" id="menuPrecioInput" min="1" class="form-control bg-dark border-secondary text-white font-monospace" placeholder="10990" required>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label small text-secondary fw-bold">HORARIO DISPONIBLE</label>
-                            <input type="text" class="form-control bg-dark border-secondary text-white" value="Todo el día">
+                        <div class="col-md-4">
+                            <label class="form-label small text-secondary fw-bold" for="menuAhorroInput">AHORRO ESTIMADO (CLP)</label>
+                            <input type="number" id="menuAhorroInput" min="0" value="1500" class="form-control bg-dark border-secondary text-white font-monospace" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small text-secondary fw-bold" for="menuEstadoInput">ESTADO</label>
+                            <select id="menuEstadoInput" class="form-select bg-dark border-secondary text-white">
+                                <option value="Activo">Activo</option>
+                                <option value="Inactivo">Inactivo</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small text-secondary fw-bold" for="menuDisponibilidadInput">HORARIO DISPONIBLE</label>
+                            <input type="text" id="menuDisponibilidadInput" class="form-control bg-dark border-secondary text-white" value="Todo el día">
                         </div>
                     </div>
                     <div class="modal-footer px-0 pb-0 mt-4 border-top border-secondary">
@@ -137,4 +198,111 @@
         </div>
     </div>
 </div>
+
+<script>
+function getCsrfTokenMenus() {
+    const el = document.querySelector('#logoutForm input[name="csrfmiddlewaretoken"]');
+    return el ? el.value : '';
+}
+
+function anexarProductoAlCombo() {
+    const sel = document.getElementById('menuSelectorProductoAux');
+    const txt = document.getElementById('menuProductosInput');
+    if (!sel || !sel.value || !txt) return;
+    const actual = txt.value.trim();
+    txt.value = actual ? (actual + ' + 1x ' + sel.value) : ('1x ' + sel.value);
+    sel.value = '';
+}
+
+function abrirModalMenuNuevo() {
+    const errEl = document.getElementById('menuFormError');
+    if (errEl) errEl.classList.add('d-none');
+    document.getElementById('modalMenuTitulo').textContent = 'Nuevo Menú / Combo Promocional';
+    document.getElementById('menuIdInput').value = '';
+    document.getElementById('menuAccionInput').value = 'crear';
+    document.getElementById('menuCodigoInput').value = '';
+    document.getElementById('menuNombreInput').value = '';
+    document.getElementById('menuProductosInput').value = '';
+    document.getElementById('menuPrecioInput').value = '';
+    document.getElementById('menuAhorroInput').value = '1500';
+    document.getElementById('menuDisponibilidadInput').value = 'Todo el día';
+    document.getElementById('menuEstadoInput').value = 'Activo';
+    new bootstrap.Modal(document.getElementById('modalNuevoMenu')).show();
+}
+
+function abrirModalMenuEditar(id, codigo, nombre, productosIncluidos, precio, ahorro, disponibilidad, estado) {
+    const errEl = document.getElementById('menuFormError');
+    if (errEl) errEl.classList.add('d-none');
+    document.getElementById('modalMenuTitulo').textContent = 'Editar Menú — ' + codigo;
+    document.getElementById('menuIdInput').value = id;
+    document.getElementById('menuAccionInput').value = 'editar';
+    document.getElementById('menuCodigoInput').value = codigo;
+    document.getElementById('menuNombreInput').value = nombre;
+    document.getElementById('menuProductosInput').value = productosIncluidos;
+    document.getElementById('menuPrecioInput').value = precio;
+    document.getElementById('menuAhorroInput').value = ahorro;
+    document.getElementById('menuDisponibilidadInput').value = disponibilidad;
+    document.getElementById('menuEstadoInput').value = estado;
+    new bootstrap.Modal(document.getElementById('modalNuevoMenu')).show();
+}
+
+function guardarMenuPos(event) {
+    event.preventDefault();
+    const errEl = document.getElementById('menuFormError');
+    if (errEl) errEl.classList.add('d-none');
+
+    const payload = {
+        accion: document.getElementById('menuAccionInput').value || 'crear',
+        id: document.getElementById('menuIdInput').value,
+        codigo: document.getElementById('menuCodigoInput').value,
+        nombre: document.getElementById('menuNombreInput').value,
+        productos_incluidos: document.getElementById('menuProductosInput').value,
+        precio: document.getElementById('menuPrecioInput').value,
+        ahorro_estimado: document.getElementById('menuAhorroInput').value,
+        disponibilidad: document.getElementById('menuDisponibilidadInput').value,
+        estado: document.getElementById('menuEstadoInput').value,
+    };
+
+    fetch("{% url 'menu_operacion' %}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfTokenMenus(),
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify(payload),
+    })
+    .then(r => r.json().then(d => ({ status: r.status, data: d })))
+    .then(({ status, data }) => {
+        if (status === 200 && data.ok) {
+            if (window.mostrarNotificacionPOS) window.mostrarNotificacionPOS(data.mensaje, 'success');
+            setTimeout(() => window.location.reload(), 500);
+        } else if (errEl) {
+            errEl.textContent = data.error || 'No se pudo guardar el menú.';
+            errEl.classList.remove('d-none');
+        }
+    });
+}
+
+function cambiarEstadoMenu(id, nuevoEstado) {
+    fetch("{% url 'menu_operacion' %}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfTokenMenus(),
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify({ accion: 'cambiar_estado', id: id, estado: nuevoEstado }),
+    })
+    .then(r => r.json().then(d => ({ status: r.status, data: d })))
+    .then(({ status, data }) => {
+        if (status === 200 && data.ok) {
+            if (window.mostrarNotificacionPOS) window.mostrarNotificacionPOS(data.mensaje, 'success');
+            setTimeout(() => window.location.reload(), 400);
+        } else if (window.mostrarNotificacionPOS) {
+            window.mostrarNotificacionPOS(data.error || 'No se pudo cambiar el estado del menú.', 'danger');
+        }
+    });
+}
+</script>
 {% endblock %}

@@ -141,7 +141,7 @@
                     <label class="form-label text-secondary fw-semibold small mb-1">USUARIO ASIGNADO</label>
                     <div class="input-group">
                         <span class="input-group-text bg-dark border-secondary text-secondary" style="border-radius: 12px 0 0 12px; border-color: #243048 !important;"><i class="bi bi-person-fill"></i></span>
-                        <input type="text" id="userInput" name="username" class="form-control touch-input" required placeholder="Ej: jvalenzuela, cmendoza..." style="border-radius: 0 12px 12px 0;" autofocus>
+                        <input type="text" id="userInput" name="username" class="form-control touch-input" required maxlength="50" autocomplete="username" placeholder="Ej: jvalenzuela, cmendoza..." style="border-radius: 0 12px 12px 0;" autofocus>
                     </div>
                 </div>
 
@@ -149,7 +149,7 @@
                     <label class="form-label text-secondary fw-semibold small mb-1">PIN / CONTRASEÑA</label>
                     <div class="input-group">
                         <span class="input-group-text bg-dark border-secondary text-secondary" style="border-radius: 12px 0 0 12px; border-color: #243048 !important;"><i class="bi bi-lock-fill"></i></span>
-                        <input type="password" id="passInput" name="password" class="form-control touch-input" required placeholder="••••••••" style="border-radius: 0 12px 12px 0;">
+                        <input type="password" id="passInput" name="password" class="form-control touch-input" required maxlength="128" autocomplete="current-password" placeholder="••••••••" style="border-radius: 0 12px 12px 0;">
                     </div>
                 </div>
 
@@ -169,5 +169,11 @@
             </div>
         </div>
     </div>
+    <script>
+        try {
+            localStorage.removeItem('safari_active_role');
+            sessionStorage.clear();
+        } catch (e) {}
+    </script>
 </body>
 </html>

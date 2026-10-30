@@ -6,13 +6,24 @@
         <div>
             <h2 class="fw-bold mb-1 text-white">Módulo de Tickets y Comandas</h2>
             <p class="text-secondary mb-0">
-                Visualización de documentos térmicos generados automáticamente tras cada venta.
+                Visualización de documentos térmicos generados desde las transacciones persistidas en PostgreSQL.
             </p>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            {% if ventas_recientes %}
+            <form method="get" action="{% url 'ticket' %}" class="d-flex align-items-center gap-2">
+                <select name="venta_num" class="form-select form-select-sm bg-dark text-white border-secondary fw-semibold" onchange="this.form.submit()">
+                    {% for vr in ventas_recientes %}
+                    <option value="{{ vr.venta_num }}" {% if venta and vr.venta_num == venta.venta_num %}selected{% endif %}>
+                        Venta #{{ vr.venta_num }} &bull; {{ vr.modalidad }}{% if vr.mesa %} ({{ vr.mesa.numero }}){% endif %} &bull; ${{ vr.total }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </form>
+            {% endif %}
             <button class="btn btn-outline-warning fw-bold d-flex align-items-center gap-2" onclick="window.print()">
                 <i class="bi bi-printer-fill"></i>
-                <span>Simular Impresión</span>
+                <span>Imprimir Comprobante</span>
             </button>
             <a href="{% url 'pos' %}" class="btn btn-warning fw-bold d-flex align-items-center gap-2">
                 <i class="bi bi-cart-plus-fill"></i>
@@ -29,14 +40,15 @@
         <div>
             <h6 class="fw-bold text-white mb-1">Enrutamiento de Documentos Térmicos</h6>
             <small class="text-secondary">
-                En Parque Safari, una sola transacción genera simultáneamente el <strong>Ticket de Venta</strong> para el cliente y enruta las comandas a sus terminales de red: <strong>Cocina (KDS/Impresora caliente)</strong> y <strong>Bar (BDS/Impresora líquidos)</strong> según la naturaleza de cada producto.
+                En Parque Safari, cada transacción confirmada persiste en PostgreSQL el <strong>Ticket de Venta</strong> con sus precios vigentes, Subtotal Neto e IVA (19%), y genera las comandas para <strong>Cocina (KDS)</strong> y <strong>Bar (BDS)</strong> según los componentes reales del pedido.
             </small>
         </div>
     </div>
 
-    <!-- Contenedor de Documentos Térmicos Simulados -->
+    {% if venta %}
+    <!-- Contenedor de Documentos Térmicos Persistidos -->
     <div class="pos-ticket-container">
-        
+
         <!-- 1. TICKET DE VENTA -->
         <div class="thermal-slip">
             <div class="thermal-header">
@@ -44,31 +56,44 @@
                 <div>RUT: {{ config.rut }}</div>
                 <div>{{ config.direccion }}</div>
                 <div>TEL: {{ config.telefono }}</div>
-                <span class="thermal-slip-type">BOLETA ELECTRÓNICA DE VENTA</span>
+                <span class="thermal-slip-type" {% if not venta.boleta_emitida %}style="background:#0284c7;color:#fff;"{% endif %}>
+                    {{ venta.tipo_documento }}
+                </span>
             </div>
             <div class="thermal-meta">
                 <div class="d-flex justify-content-between">
                     <strong>VENTA #{{ venta.venta_num }}</strong>
-                    <span>{{ fecha_actual }} {{ hora_actual }}</span>
+                    <span>{{ venta.fecha }} {{ venta.hora_completa }}</span>
                 </div>
-                <div>CAJERO: {{ usuario_actual.nombre }}</div>
-                <div>MODALIDAD: <strong>{{ venta.modalidad }}</strong></div>
+                <div>CAJERO / OPERADOR: {{ venta.cajero }}</div>
+                <div>ATENCIÓN: <strong>{{ venta.ubicacion }}</strong></div>
+                <div>ESTADO: <strong>{{ venta.estado }}</strong></div>
                 <div>TERMINAL: {{ config.terminal_caja }}</div>
             </div>
             <div class="thermal-items">
                 {% for it in venta.items %}
                 <div class="thermal-row">
                     <span>{{ it.cant }}x {{ it.nombre|truncatechars:22 }}</span>
-                    <span>$3.500</span>
+                    <span>{{ it.subtotal_fmt }}</span>
                 </div>
                 {% endfor %}
             </div>
+            <div class="border-top border-dark pt-1 mt-1 small font-monospace">
+                <div class="d-flex justify-content-between">
+                    <span>SUBTOTAL NETO:</span>
+                    <span>{{ venta.subtotal_fmt }}</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span>IVA (19%):</span>
+                    <span>{{ venta.iva_fmt }}</span>
+                </div>
+            </div>
             <div class="thermal-total">
-                <span>TOTAL PAGADO:</span>
-                <span>{{ venta.total }}</span>
+                <span>TOTAL:</span>
+                <span>{{ venta.total_fmt }}</span>
             </div>
             <div class="text-center small">
-                <div>Medio de Pago: TARJETA DÉBITO</div>
+                <div>Medio de Pago: <strong>{{ venta.metodo_pago|upper }}</strong></div>
                 <div>IVA Incluido (19%)</div>
                 <div class="mt-3 text-muted">¡Gracias por visitar Parque Safari!</div>
                 <div>Conserve este ticket para cualquier reclamo</div>
@@ -80,6 +105,7 @@
         </div>
 
         <!-- 2. COMANDA DE COCINA -->
+        {% if venta.comanda_cocina %}
         <div class="thermal-slip">
             <div class="thermal-header" style="background: #fef08a; padding: 0.5rem; margin: -1.5rem -1.25rem 0.75rem;">
                 <h2 style="color: #000; margin: 0;">COMANDA COCINA</h2>
@@ -87,34 +113,32 @@
             </div>
             <div class="thermal-meta">
                 <div class="d-flex justify-content-between fw-bold fs-6">
-                    <span>PEDIDO: #{{ venta.venta_num }}</span>
-                    <span class="badge bg-dark text-white px-2 py-1">{{ venta.modalidad }}</span>
+                    <span>PEDIDO: {{ venta.comanda_cocina.codigo }}</span>
+                    <span class="badge bg-dark text-white px-2 py-1">{{ venta.comanda_cocina.ubicacion }}</span>
                 </div>
-                <div>HORA: {{ hora_actual }} &bull; GARZÓN: {{ venta.garzon }}</div>
+                <div>HORA: <span class="font-monospace">{{ venta.comanda_cocina.hora }}</span> &bull; OPERADOR: {{ venta.comanda_cocina.garzon }}</div>
             </div>
             <div class="thermal-items">
+                {% for item_c in venta.comanda_cocina.items %}
                 <div class="thermal-row fw-bold" style="font-size: 1rem;">
-                    <span>[1] Hamburguesa Safari Especial</span>
+                    <span>[{{ item_c.cant }}] {{ item_c.nombre }}</span>
                 </div>
-                <div class="thermal-notes">
-                    &rarr; NOTA: Sin mayonesa, tocino bien dorado
-                </div>
-                <div class="thermal-row fw-bold" style="font-size: 1rem; margin-top: 0.5rem;">
-                    <span>[1] Papas Fritas Rústicas Safari</span>
-                </div>
-                <div class="thermal-notes">
-                    &rarr; NOTA: Con salsa de ajo aparte
-                </div>
+                {% endfor %}
             </div>
-            <div class="p-2 bg-light border border-dark rounded fw-bold text-danger">
-                ESTADO: EN PREPARACIÓN (Mesa prioritaria)
+            <div class="p-2 bg-light border border-dark rounded fw-bold text-danger mb-2">
+                NOTA: {{ venta.comanda_cocina.notas }}
+            </div>
+            <div class="p-2 bg-light border border-dark rounded fw-bold text-dark text-center">
+                ESTADO KDS: {{ venta.comanda_cocina.estado|upper }}
             </div>
             <div class="text-center small mt-3 text-muted">
                 [IMPRESORA: {{ config.impresora_cocina }}]
             </div>
         </div>
+        {% endif %}
 
         <!-- 3. COMANDA DE BAR -->
+        {% if venta.comanda_bar %}
         <div class="thermal-slip">
             <div class="thermal-header" style="background: #bfdbfe; padding: 0.5rem; margin: -1.5rem -1.25rem 0.75rem;">
                 <h2 style="color: #000; margin: 0;">COMANDA BAR</h2>
@@ -122,27 +146,42 @@
             </div>
             <div class="thermal-meta">
                 <div class="d-flex justify-content-between fw-bold fs-6">
-                    <span>PEDIDO: #{{ venta.venta_num }}</span>
-                    <span class="badge bg-dark text-white px-2 py-1">{{ venta.modalidad }}</span>
+                    <span>PEDIDO: {{ venta.comanda_bar.codigo }}</span>
+                    <span class="badge bg-dark text-white px-2 py-1">{{ venta.comanda_bar.ubicacion }}</span>
                 </div>
-                <div>HORA: {{ hora_actual }} &bull; GARZÓN: {{ venta.garzon }}</div>
+                <div>HORA: <span class="font-monospace">{{ venta.comanda_bar.hora }}</span> &bull; OPERADOR: {{ venta.comanda_bar.garzon }}</div>
             </div>
             <div class="thermal-items">
+                {% for item_b in venta.comanda_bar.items %}
                 <div class="thermal-row fw-bold" style="font-size: 1rem;">
-                    <span>[1] Jugo Natural Guayaba-Mango 500ml</span>
+                    <span>[{{ item_b.cant }}] {{ item_b.nombre }}</span>
                 </div>
-                <div class="thermal-notes">
-                    &rarr; NOTA: Poco hielo, bombilla de papel
-                </div>
+                {% endfor %}
             </div>
-            <div class="p-2 bg-light border border-dark rounded fw-bold text-primary">
-                ESTADO: LISTO EN BARRA
+            <div class="p-2 bg-light border border-dark rounded fw-bold text-primary mb-2">
+                NOTA: {{ venta.comanda_bar.notas }}
+            </div>
+            <div class="p-2 bg-light border border-dark rounded fw-bold text-dark text-center">
+                ESTADO BDS: {{ venta.comanda_bar.estado|upper }}
             </div>
             <div class="text-center small mt-3 text-muted">
                 [IMPRESORA: {{ config.impresora_bar }}]
             </div>
         </div>
+        {% endif %}
 
     </div>
+    {% else %}
+    <div class="pos-empty-filter-state">
+        <div class="empty-icon text-secondary">
+            <i class="bi bi-receipt"></i>
+        </div>
+        <h4 class="fw-bold text-white mb-2">Aún no hay ventas registradas</h4>
+        <p class="text-secondary mb-3">Diríjase al Punto de Venta (POS) para emitir la primera venta o comanda de mesa.</p>
+        <a href="{% url 'pos' %}" class="btn btn-warning fw-bold px-4">
+            <i class="bi bi-cart-plus-fill me-1"></i> Ir al Punto de Venta
+        </a>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

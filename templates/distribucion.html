@@ -10,7 +10,7 @@
             </div>
             <div>
                 <h2 class="pos-view-title mb-0">Módulo de Distribución de Ventas</h2>
-                <p class="pos-view-subtitle mb-0">Visualización del flujo de enrutamiento: cómo cada producto se deriva a Cocina o Bar</p>
+                <p class="pos-view-subtitle mb-0">Visualización en tiempo real desde PostgreSQL: cómo cada producto o combo se deriva a Cocina o Bar</p>
             </div>
         </div>
         <div class="d-flex gap-2 mt-2 mt-md-0">
@@ -25,7 +25,7 @@
         </div>
     </div>
 
-    <!-- Diagrama Conceptual del Flujo (Minimalista y compacto) -->
+    <!-- Diagrama Conceptual del Flujo -->
     <div class="card pos-card p-3 mb-4">
         <h6 class="fw-bold text-white mb-2 d-flex align-items-center gap-2">
             <i class="bi bi-diagram-3-fill text-warning"></i>
@@ -36,21 +36,21 @@
                 <div class="p-2 rounded-3 border border-warning bg-warning bg-opacity-10">
                     <div class="fs-4 text-warning mb-1"><i class="bi bi-cart-check-fill"></i></div>
                     <div class="fw-bold text-white small">1. Venta POS Confirmada</div>
-                    <small class="text-secondary" style="font-size: 0.72rem;">Pedido emitido desde la caja o garzón con comida y bebidas.</small>
+                    <small class="text-secondary" style="font-size: 0.72rem;">Pedido persistido en PostgreSQL con productos y combos descompuestos.</small>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="p-2 rounded-3 border border-danger bg-danger bg-opacity-10">
                     <div class="fs-4 text-danger mb-1"><i class="bi bi-fire"></i></div>
                     <div class="fw-bold text-white small">2. Enrutamiento a COCINA (KDS)</div>
-                    <small class="text-secondary" style="font-size: 0.72rem;">Hamburguesas, churrascos, completos y platos calientes.</small>
+                    <small class="text-secondary" style="font-size: 0.72rem;">Hamburguesas, churrascos, completos, nachos y platos calientes.</small>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="p-2 rounded-3 border border-info bg-info bg-opacity-10">
                     <div class="fs-4 text-info mb-1"><i class="bi bi-cup-straw"></i></div>
                     <div class="fw-bold text-white small">3. Enrutamiento a BAR (BDS)</div>
-                    <small class="text-secondary" style="font-size: 0.72rem;">Jugos naturales, cervezas, cafetería y helados de barra.</small>
+                    <small class="text-secondary" style="font-size: 0.72rem;">Jugos naturales, cervezas schop, cafetería y copas de helado.</small>
                 </div>
             </div>
         </div>
@@ -84,12 +84,13 @@
         </div>
     </div>
 
+    {% if distribucion %}
     <!-- Representación de Ventas Distribuidas en Árbol / Nodos -->
     <div class="row g-3" id="distribGrid">
         {% for v in distribucion %}
-        <div class="col-xl-6 distrib-card-wrapper" 
-             data-venta="{{ v.venta_num }}" 
-             data-modalidad="{{ v.modalidad }}" 
+        <div class="col-xl-6 distrib-card-wrapper"
+             data-venta="{{ v.venta_num }}"
+             data-modalidad="{{ v.modalidad }}"
              data-garzon="{{ v.garzon }}"
              data-has-cocina="{% for item in v.items %}{% if item.destino == 'COCINA' %}true{% endif %}{% endfor %}"
              data-has-bar="{% for item in v.items %}{% if item.destino == 'BAR' %}true{% endif %}{% endfor %}"
@@ -98,10 +99,13 @@
                 <!-- Encabezado de Venta -->
                 <div class="d-flex justify-content-between align-items-center pb-2 border-bottom border-secondary mb-3">
                     <div>
-                        <span class="badge bg-warning text-dark font-monospace fs-6 px-2 py-1">
+                        <a href="{% url 'ticket' %}?venta_num={{ v.venta_num }}" class="badge bg-warning text-dark font-monospace fs-6 px-2 py-1 text-decoration-none" title="Ver Ticket Térmico">
                             VENTA #{{ v.venta_num }}
-                        </span>
+                        </a>
                         <span class="badge bg-secondary ms-2">{{ v.modalidad }}</span>
+                        {% if v.estado_venta %}
+                        <span class="badge {% if v.estado_venta == 'Pagado' %}bg-success{% else %}bg-info text-dark{% endif %} ms-1">{{ v.estado_venta }}</span>
+                        {% endif %}
                     </div>
                     <div class="text-end">
                         <span class="text-secondary small d-block">{{ v.hora }} &bull; {{ v.garzon }}</span>
@@ -112,7 +116,7 @@
                 <!-- Desglose Gráfico en Árbol -->
                 <div>
                     <div class="text-secondary small fw-bold mb-2">
-                        <i class="bi bi-arrow-return-right me-1"></i>DESGLOSE Y DESTINO POR PRODUCTO:
+                        <i class="bi bi-arrow-return-right me-1"></i>DESGLOSE Y DESTINO POR PRODUCTO / COMPONENTE:
                     </div>
 
                     <div class="d-flex flex-column gap-2">
@@ -140,6 +144,18 @@
         </div>
         {% endfor %}
     </div>
+    {% else %}
+    <div class="pos-empty-filter-state">
+        <div class="empty-icon text-secondary">
+            <i class="bi bi-diagram-3"></i>
+        </div>
+        <h4 class="fw-bold text-white mb-2">Sin ventas distribuidas registradas</h4>
+        <p class="text-secondary mb-3">Realice una venta en el Punto de Venta (POS) para observar el enrutamiento en tiempo real hacia Cocina y Bar.</p>
+        <a href="{% url 'pos' %}" class="btn btn-warning fw-bold px-4">
+            <i class="bi bi-cart-plus-fill me-1"></i> Ir al Punto de Venta
+        </a>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
 

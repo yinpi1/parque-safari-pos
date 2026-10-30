@@ -1,0 +1,160 @@
+================================================================================
+PARQUE SAFARI POS — RESUMEN EJECUTIVO Y TÉCNICO DE CAMBIOS REALIZADOS HOY
+Fecha: 30 de octubre de 2026
+Rama: main
+Estado: Versión Beta Funcional Lista para Producción (31/31 pruebas aprobadas)
+================================================================================
+
+1. RESUMEN GENERAL
+------------------
+Se ejecutó una auditoría técnica integral (identificando los hallazgos AUD-001
+a AUD-025) y se implementaron de extremo a extremo las Fases 01 a 07 para
+transformar Parque Safari POS desde un prototipo acoplado a datos demostrativos
+(`mock_data.py`) en una aplicación web transaccional real conectada al 100% a
+Neon PostgreSQL, protegida en servidor y lista para despliegue en Vercel.
+
+
+2. FASE 01 — SEGURIDAD, AUTENTICACIÓN Y CONTROL DE ACCESO (RBAC)
+----------------------------------------------------------------
+- Cifrado de contraseñas con PBKDF2-SHA256:
+  * Implementación de `set_password()`, `check_password()` e `is_password_hashed()`
+    en el modelo `Usuario` (`pos_app/models.py`), garantizando que ninguna
+    contraseña se almacene en texto plano ni se vuelva a hashear accidentalmente.
+  * Creación de la migración reversible e idempotente
+    `pos_app/migrations/0002_hash_plain_passwords.py` para convertir contraseñas
+    heredadas sin perder cuentas existentes.
+  * Eliminación total de contraseñas maestras (`123`, `123456`) y de cualquier
+    fallback de autenticación si la base de datos falla (política Fail-Closed).
+- Protección contra fuerza bruta y enumeración de usuarios:
+  * Mensaje de error genérico unificado ante usuario inexistente, clave errónea
+    o cuenta inactiva, más verificación constante con `DUMMY_PASSWORD_HASH` para
+    mitigar ataques de temporización (timing attacks).
+  * Rate limiting respaldado en PostgreSQL (`LogAuditoria` con acción
+    `LOGIN_FALLIDO`): bloqueo temporal de 5 minutos tras 5 intentos fallidos
+    por usuario o dirección IP.
+- Sesiones y cierre de sesión seguro:
+  * Eliminación del fallback inseguro `Usuario.objects.first()`.
+  * Logout exclusivo por método `POST` con protección CSRF, invalidación real en
+    servidor (`request.session.flush()`), cabeceras `Cache-Control: no-store` y
+    eliminación de cualquier dependencia de `localStorage` para identidad o rol.
+- Control de acceso basado en roles (RBAC) en servidor:
+  * Decoradores `@pos_login_required` y `@role_required` aplicados en todas las
+    vistas HTML y endpoints JSON según la matriz de permisos por cargo (`admin`,
+    `cajero`, `garzon`, `cocina`, `bar`), con plantilla `templates/403.html`.
+  * Context processor `pos_app/context_processors.py` sincronizado en tiempo
+    real con el usuario autenticado de la sesión.
+
+
+3. FASE 02 — INTEGRIDAD DE DATOS, RESTRICCIONES EN POSTGRESQL Y SEMILLAS
+------------------------------------------------------------------------
+- Validaciones y restricciones en base de datos (`pos_app/models.py` y
+  `pos_app/migrations/0003_integridad_restricciones_pos.py`):
+  * 19 `CheckConstraint` y 2 `UniqueConstraint` condicionales a nivel de
+    PostgreSQL para impedir precios menores o iguales a cero, cantidades
+    inválidas, capacidades negativas, porcentajes fuera de rango o más de una
+    sesión de caja abierta por terminal, respetando las excepciones contables
+    legítimas (`SesionCaja.diferencia` negativa por arqueo faltante y
+    `FiadoMovimiento.monto` negativo en abonos/descuentos de nómina).
+  * Integridad referencial reforzada con `on_delete=models.PROTECT` en claves
+    foráneas críticas (`Usuario.cargo`, `Producto.categoria`,
+    `DetalleVenta.producto`, `DetalleVenta.menu`, `SesionCaja.cajero`,
+    `FiadoMovimiento.fiado`).
+- Script de semillas idempotente (`seed_neon.py`) y esquema SQL
+  (`database/schema_postgresql.sql`):
+  * Separación estricta entre catálogo base de producción (`python seed_neon.py`)
+    y datos demostrativos opcionales (`python seed_neon.py --include-demo`).
+  * Sincronización mediante `update_or_create()` sin borrar ventas ni usuarios.
+
+
+4. FASE 03 — FLUJO TRANSACCIONAL DEL PUNTO DE VENTA (POS, MESAS Y COMANDAS)
+---------------------------------------------------------------------------
+- Creación de la capa de servicios transaccionales (`pos_app/services.py`):
+  * Endpoint `POST /pos/procesar-venta/` (`procesar_venta_transaccional`):
+    ignora cualquier precio o total enviado por el navegador, consulta los
+    precios vigentes en PostgreSQL, verifica que los productos y menús estén
+    activos, calcula Subtotal Neto, IVA (19%) y Total en pesos chilenos (CLP)
+    y persiste atómicamente `Venta`, `DetalleVenta` y `ComandaProduccion`.
+  * Prevención de ventas duplicadas (doble clic) mediante bloqueo pesimista
+    `select_for_update()` y clave de idempotencia (`idempotency_key`).
+- Distinción comercial entre Venta Inmediata (`BAR`) y Pedido de Salón (`MESA`):
+  * Las ventas en `BAR` se registran como `Pagado` con boleta emitida inmediata.
+  * Los pedidos en `MESA` bloquean la mesa (`Ocupada`), acumulan consumo con
+    boleta diferida (`Pendiente`) hasta el cobro/liberación y permiten agregar
+    nuevos consumos o reasignar de mesa (`POST /mesas/operacion/`).
+- Descomposición de combos y flujo KDS/BDS (`Cocina`, `Bar`, `Distribución`):
+  * Desglose automático de `MenuCombo` hacia Cocina (`C-xxxxx`) y Bar (`B-xxxxx`).
+  * Avance transaccional de estados (`POST /comandas/estado/`):
+    `Pendiente -> En preparación -> Preparado/Listo -> Entregado`, validando
+    permisos por estación y compatible con `FOR UPDATE` en PostgreSQL.
+
+
+5. FASE 04 — CAJA, CUADRATURA POR DENOMINACIONES Y FIADOS DEL PERSONAL
+----------------------------------------------------------------------
+- Operaciones reales de Caja (`POST /caja/operacion/` y modal en `base.html`):
+  * Apertura de turno (`SesionCaja`) con fondo inicial y operador autenticado,
+    bloqueando aperturas duplicadas (`caja_ya_abierta`).
+  * Cálculo del efectivo esperado del sistema sumando exclusivamente el fondo
+    de apertura más las ventas pagadas en `Efectivo` (separando tarjetas,
+    transferencias y vales de fiado).
+  * Registro de las 9 denominaciones chilenas de billetes y monedas en
+    `CuadraturaCaja`, cálculo automático del efectivo contado y la diferencia
+    (`Sobrante`, `Faltante` o `Cuadratura Exacta`), cierre de turno e historial.
+- Gestión contable de Fiados (`POST /fiados/operacion/` y `templates/fiados.html`):
+  * Alta de cuentas de colaboradores (`FiadoPersonal`), imputación de cargos
+    validando el límite de crédito disponible (`fiado_cupo_excedido`), registro
+    de abonos/descuentos de nómina (`abono`), idempotencia y protección de la
+    inmutabilidad del historial (`FiadoMovimiento`).
+
+
+6. FASE 05 — MANTENEDORES ADMINISTRATIVOS CONECTADOS A POSTGRESQL
+-----------------------------------------------------------------
+- Todos los mantenedores cuentan con validación en servidor y protección RBAC
+  exclusiva para el rol `admin`:
+  * Productos y Categorías (`POST /productos/operacion/`): creación, edición y
+    desactivación lógica (`Inactivo`/`Agotado`) impidiendo eliminar productos
+    con historial en `DetalleVenta`.
+  * Menús y Combos (`POST /menus/operacion/`): creación, edición y cambio de
+    estado con previsualización de ruteo hacia Cocina y Bar.
+  * Usuarios y Cargos (`POST /usuarios/operacion/`): alta y edición de usuarios
+    con hash PBKDF2-SHA256, edición de cargos y protección contra la
+    auto-desactivación del administrador en sesión activa.
+  * Configuración del Sistema (`POST /configuracion/operacion/`): guardado real
+    en `ConfiguracionPOS` de datos tributarios, terminal, impresoras e IVA.
+
+
+7. FASE 06 — DASHBOARD, REPORTES, UX/UI, RESPONSIVIDAD Y PÁGINA 404
+-------------------------------------------------------------------
+- Analítica y Reportes en tiempo real desde PostgreSQL:
+  * `Dashboard` y `Estadísticas` conectados a ventas cerradas, tiempos reales
+    de preparación KDS/BDS, curva horaria, mix por categoría y top productos.
+  * `Reportes` (`/reportes/`) con filtros reales por tipo (`ventas`, `productos`,
+    `tiempos`, `fiados`) y fechas, más exportación descargable a CSV/Excel
+    (`?formato=csv`) e impresión/PDF.
+- Mejoras visuales, responsividad y estáticos:
+  * Restauración de clases `.pos-table-grid`, `.pos-table-card`,
+    `.pos-table-custom` y `.thermal-*` en `static/css/estilos.css`.
+  * Eliminación de `user-select: none` global en `body` y reemplazo de todos los
+    `alert()` por notificaciones toast no bloqueantes (`mostrarNotificacionPOS`).
+  * Reglas responsivas para `1920x1080`, `1366x768`, `1024x768` y `768x1024`.
+  * `collectstatic` ejecutado y sincronizado en `staticfiles/` (133 archivos).
+- Página 404 personalizada y endurecimiento `DEBUG=False`:
+  * `DEBUG=False` por defecto y forzado automáticamente en Vercel (`IS_VERCEL`).
+  * `handler404`, `handler500` y ruta catch-all final configurados en
+    `parque_safari/urls.py` para renderizar siempre `templates/404.html` con
+    código HTTP `404` y nunca mostrar la página técnica de depuración de Django.
+
+
+8. FASE 07 — PRUEBAS AUTOMATIZADAS Y VERIFICACIÓN DE RELEASE
+------------------------------------------------------------
+- Suite de pruebas de Django (`pos_app/tests.py`):
+  * 31 pruebas automatizadas ejecutadas y aprobadas (`Ran 31 tests — OK`),
+    cubriendo Fase 01 (`test_01` a `test_14`), Fase 02 (`test_15` a `test_19`),
+    Fase 03 (`test_20` a `test_26`) y Fases 04 a 07 (`test_27` a `test_31`).
+- Verificación E2E sobre PostgreSQL real en transacción aislada con rollback:
+  * Flujo completo verificado contra el motor PostgreSQL sin alterar datos
+    productivos (`Counts preserved: True`).
+- Comprobaciones de sistema y despliegue:
+  * `python manage.py check` -> 0 problemas.
+  * `python manage.py check --deploy` -> 0 problemas.
+  * `python manage.py makemigrations --check --dry-run` -> Sin cambios pendientes.
+================================================================================

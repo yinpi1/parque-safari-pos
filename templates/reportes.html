@@ -5,45 +5,47 @@
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
         <div>
             <h2 class="fw-bold mb-1 text-white">Centro de Reportes Gerenciales</h2>
-            <p class="text-secondary mb-0">Generación y exportación de informes de ventas, stock, fiados y tiempos de servicio.</p>
+            <p class="text-secondary mb-0">Consulta en tiempo real y exportación verificable de ventas, rotación de catálogo, tiempos KDS/BDS y fiados desde PostgreSQL.</p>
         </div>
         <div class="d-flex gap-2">
-            <button class="btn btn-outline-danger fw-bold d-flex align-items-center gap-2" onclick="alert('Exportación de Reporte a PDF generada (simulada).')">
-                <i class="bi bi-file-earmark-pdf-fill"></i>
-                <span>Exportar PDF</span>
+            <button type="button" class="btn btn-outline-info fw-bold d-flex align-items-center gap-2" onclick="window.print()">
+                <i class="bi bi-printer-fill"></i>
+                <span>Imprimir / PDF</span>
             </button>
-            <button class="btn btn-outline-success fw-bold d-flex align-items-center gap-2" onclick="alert('Exportación de Reporte a Excel generada (simulada).')">
-                <i class="bi bi-file-earmark-excel-fill"></i>
-                <span>Exportar Excel</span>
-            </button>
+            <a href="{% url 'reportes' %}?tipo={{ reporte.tipo_reporte }}&desde={{ reporte.fecha_desde }}&hasta={{ reporte.fecha_hasta }}&formato=csv"
+               class="btn btn-outline-success fw-bold d-flex align-items-center gap-2"
+               id="btnExportarCsv">
+                <i class="bi bi-file-earmark-spreadsheet-fill"></i>
+                <span>Exportar CSV / Excel</span>
+            </a>
         </div>
     </div>
 
-    <!-- Barra de Filtros Visuales -->
+    <!-- Barra de Filtros Reales Conectados a PostgreSQL -->
     <div class="card bg-dark border-secondary p-4 rounded-4 mb-4">
-        <form id="reportFilterForm" onsubmit="event.preventDefault(); alert('Filtro de reporte aplicado. Mostrando datos demostrativos.');">
+        <form id="reportFilterForm" method="get" action="{% url 'reportes' %}">
             <div class="row g-3 align-items-end">
-                <div class="col-md-3">
-                    <label class="form-label small text-secondary fw-bold">TIPO DE REPORTE</label>
-                    <select class="form-select bg-dark border-secondary text-white" id="tipoReporteSelect">
-                        <option value="ventas">Reporte de Ventas Diarias / Arqueo</option>
-                        <option value="productos">Reporte de Rotación de Productos</option>
-                        <option value="tiempos">Reporte de Tiempos Cocina y Bar</option>
-                        <option value="fiados">Reporte de Consumos Fiados por Colaborador</option>
+                <div class="col-md-4">
+                    <label class="form-label small text-secondary fw-bold" for="tipoReporteSelect">TIPO DE REPORTE</label>
+                    <select class="form-select bg-dark border-secondary text-white" id="tipoReporteSelect" name="tipo">
+                        <option value="ventas" {% if reporte.tipo_reporte == 'ventas' %}selected{% endif %}>Reporte de Ventas Diarias / Arqueo</option>
+                        <option value="productos" {% if reporte.tipo_reporte == 'productos' %}selected{% endif %}>Reporte de Rotación de Productos y Combos</option>
+                        <option value="tiempos" {% if reporte.tipo_reporte == 'tiempos' %}selected{% endif %}>Reporte de Tiempos Cocina y Bar (KDS/BDS)</option>
+                        <option value="fiados" {% if reporte.tipo_reporte == 'fiados' %}selected{% endif %}>Reporte de Consumos Fiados por Colaborador</option>
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label small text-secondary fw-bold">FECHA DESDE</label>
-                    <input type="date" class="form-control bg-dark border-secondary text-white" value="2026-09-01">
+                    <label class="form-label small text-secondary fw-bold" for="fechaDesdeInput">FECHA DESDE</label>
+                    <input type="date" class="form-control bg-dark border-secondary text-white" id="fechaDesdeInput" name="desde" value="{{ reporte.fecha_desde }}">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label small text-secondary fw-bold">FECHA HASTA</label>
-                    <input type="date" class="form-control bg-dark border-secondary text-white" value="2026-09-26">
+                    <label class="form-label small text-secondary fw-bold" for="fechaHastaInput">FECHA HASTA</label>
+                    <input type="date" class="form-control bg-dark border-secondary text-white" id="fechaHastaInput" name="hasta" value="{{ reporte.fecha_hasta }}">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <button type="submit" class="btn btn-warning w-100 fw-bold py-2 d-flex align-items-center justify-content-center gap-2">
                         <i class="bi bi-funnel-fill"></i>
-                        <span>CONSULTAR REPORTE</span>
+                        <span>CONSULTAR</span>
                     </button>
                 </div>
             </div>
@@ -52,17 +54,122 @@
 
     <!-- Resultados del Reporte Seleccionado -->
     <div class="card bg-dark border-secondary p-4 rounded-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
             <div>
                 <h5 class="fw-bold text-white mb-0" id="reportPreviewTitle">
-                    <i class="bi bi-file-earmark-spreadsheet-fill text-warning me-2"></i>Vista Previa: Reporte de Ventas y Facturación
+                    <i class="bi bi-file-earmark-spreadsheet-fill text-warning me-2"></i>{{ reporte.titulo }}
                 </h5>
-                <small class="text-secondary">Período: 01/09/2026 al 26/09/2026 &bull; Parque Safari Rancagua</small>
+                <small class="text-secondary">Período consultado: {{ reporte.fecha_desde_label }} al {{ reporte.fecha_hasta_label }} &bull; {{ config.nombre_parque }}</small>
             </div>
-            <span class="badge bg-secondary font-monospace">112 Registros</span>
+            <span class="badge bg-secondary font-monospace">{{ reporte.total_registros }} Registros</span>
         </div>
 
         <div class="table-responsive">
+            {% if reporte.tipo_reporte == 'productos' %}
+            <table class="pos-table-custom">
+                <thead>
+                    <tr>
+                        <th>POSICIÓN</th>
+                        <th>PRODUCTO / MENÚ</th>
+                        <th>CATEGORÍA</th>
+                        <th>UNIDADES VENDIDAS</th>
+                        <th>PARTICIPACIÓN</th>
+                        <th class="text-end">INGRESOS GENERADOS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in reporte.registros %}
+                    <tr>
+                        <td class="font-monospace fw-bold text-warning">#{{ r.posicion }}</td>
+                        <td class="fw-bold text-white">{{ r.nombre }}</td>
+                        <td><span class="badge bg-secondary">{{ r.categoria }}</span></td>
+                        <td class="font-monospace text-info fw-bold">{{ r.cantidad }} uds.</td>
+                        <td><span class="font-monospace text-secondary">{{ r.participacion }}%</span></td>
+                        <td class="text-end font-monospace fw-bold text-success">{{ r.ingresos_fmt }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-secondary py-4">No se encontraron ventas de productos en el rango seleccionado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            {% elif reporte.tipo_reporte == 'tiempos' %}
+            <table class="pos-table-custom">
+                <thead>
+                    <tr>
+                        <th>COMANDA</th>
+                        <th>FOLIO VENTA</th>
+                        <th>ÁREA</th>
+                        <th>EMISIÓN</th>
+                        <th>DESPACHO</th>
+                        <th>TIEMPO CICLO</th>
+                        <th class="text-end">ESTADO</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in reporte.registros %}
+                    <tr>
+                        <td class="font-monospace fw-bold text-warning">{{ r.codigo_comanda }}</td>
+                        <td class="font-monospace text-light">#{{ r.venta_num }}</td>
+                        <td>
+                            <span class="badge {% if r.area == 'COCINA' %}bg-danger{% else %}bg-info text-dark{% endif %}">{{ r.area }}</span>
+                        </td>
+                        <td class="font-monospace text-secondary">{{ r.creacion }}</td>
+                        <td class="font-monospace text-secondary">{{ r.cierre }}</td>
+                        <td class="font-monospace fw-bold text-info">{{ r.duracion }}</td>
+                        <td class="text-end">
+                            <span class="badge {% if r.estado == 'Entregado' or r.estado == 'Preparado' or r.estado == 'Listo' %}bg-success{% elif r.estado == 'En preparación' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                {{ r.estado }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-secondary py-4">No se registran comandas de producción en el rango seleccionado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            {% elif reporte.tipo_reporte == 'fiados' %}
+            <table class="pos-table-custom">
+                <thead>
+                    <tr>
+                        <th>RUT</th>
+                        <th>COLABORADOR</th>
+                        <th>ÁREA</th>
+                        <th>CONSUMOS MES</th>
+                        <th>LÍMITE CRÉDITO</th>
+                        <th>SALDO PENDIENTE</th>
+                        <th class="text-end">ESTADO</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in reporte.registros %}
+                    <tr>
+                        <td class="font-monospace text-secondary">{{ r.rut }}</td>
+                        <td class="fw-bold text-white">{{ r.trabajador }}</td>
+                        <td><span class="badge bg-secondary">{{ r.cargo }}</span></td>
+                        <td class="font-monospace text-info">{{ r.consumos_mes }}</td>
+                        <td class="font-monospace text-light">{{ r.limite_fmt }}</td>
+                        <td class="font-monospace fw-bold {% if r.total_acumulado > 0 %}text-warning{% else %}text-success{% endif %}">{{ r.acumulado_fmt }}</td>
+                        <td class="text-end">
+                            <span class="badge {% if r.estado == 'Al día' %}bg-success{% elif r.estado == 'Por descontar' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                {{ r.estado }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-secondary py-4">No existen cuentas de fiado registradas.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            {% else %}
             <table class="pos-table-custom">
                 <thead>
                     <tr>
@@ -78,58 +185,40 @@
                     </tr>
                 </thead>
                 <tbody>
+                    {% for r in reporte.registros %}
                     <tr>
-                        <td class="text-secondary font-monospace">26/09/2026 12:44</td>
-                        <td class="font-monospace fw-bold text-warning">#00142</td>
-                        <td class="text-light">Camila Silva</td>
-                        <td><span class="badge bg-secondary">Mesa 03</span></td>
-                        <td><span class="badge bg-info text-dark">Tarjeta Débito</span></td>
-                        <td class="font-monospace">$12.345</td>
-                        <td class="font-monospace text-secondary">$2.345</td>
-                        <td class="font-monospace fw-bold text-success fs-6">$14.690</td>
-                        <td class="text-end"><span class="badge bg-success">Completada</span></td>
+                        <td class="text-secondary font-monospace">{{ r.fecha_hora }}</td>
+                        <td class="font-monospace fw-bold text-warning">#{{ r.venta_num }}</td>
+                        <td class="text-light">{{ r.cajero }}</td>
+                        <td><span class="badge bg-secondary">{{ r.atencion }}</span></td>
+                        <td>
+                            <span class="badge {% if r.metodo_pago == 'Efectivo' %}bg-success{% elif r.metodo_pago == 'Vale Fiado' %}bg-warning text-dark{% else %}bg-info text-dark{% endif %}">
+                                {{ r.metodo_pago }}
+                            </span>
+                        </td>
+                        <td class="font-monospace">{{ r.subtotal_fmt }}</td>
+                        <td class="font-monospace text-secondary">{{ r.iva_fmt }}</td>
+                        <td class="font-monospace fw-bold text-success fs-6">{{ r.total_fmt }}</td>
+                        <td class="text-end">
+                            <span class="badge {% if r.estado == 'Pagado' %}bg-success{% elif r.estado == 'Pendiente' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                {{ r.estado }}
+                            </span>
+                        </td>
                     </tr>
+                    {% empty %}
                     <tr>
-                        <td class="text-secondary font-monospace">26/09/2026 12:40</td>
-                        <td class="font-monospace fw-bold text-warning">#00141</td>
-                        <td class="text-light">Jean Valenzuela</td>
-                        <td><span class="badge bg-secondary">BAR</span></td>
-                        <td><span class="badge bg-success">Efectivo</span></td>
-                        <td class="font-monospace">$12.437</td>
-                        <td class="font-monospace text-secondary">$2.363</td>
-                        <td class="font-monospace fw-bold text-success fs-6">$14.800</td>
-                        <td class="text-end"><span class="badge bg-success">Completada</span></td>
+                        <td colspan="9" class="text-center text-secondary py-4">No se encontraron ventas registradas en el período seleccionado.</td>
                     </tr>
-                    <tr>
-                        <td class="text-secondary font-monospace">26/09/2026 12:35</td>
-                        <td class="font-monospace fw-bold text-warning">#00140</td>
-                        <td class="text-light">Rodrigo Morales</td>
-                        <td><span class="badge bg-secondary">Mesa 06</span></td>
-                        <td><span class="badge bg-info text-dark">Tarjeta Crédito</span></td>
-                        <td class="font-monospace">$40.504</td>
-                        <td class="font-monospace text-secondary">$7.696</td>
-                        <td class="font-monospace fw-bold text-success fs-6">$48.200</td>
-                        <td class="text-end"><span class="badge bg-success">Completada</span></td>
-                    </tr>
-                    <tr>
-                        <td class="text-secondary font-monospace">26/09/2026 12:20</td>
-                        <td class="font-monospace fw-bold text-warning">#00139</td>
-                        <td class="text-light">Jean Valenzuela</td>
-                        <td><span class="badge bg-secondary">BAR</span></td>
-                        <td><span class="badge bg-warning text-dark">Fiado Colaborador</span></td>
-                        <td class="font-monospace">$8.395</td>
-                        <td class="font-monospace text-secondary">$1.595</td>
-                        <td class="font-monospace fw-bold text-warning fs-6">$9.990</td>
-                        <td class="text-end"><span class="badge bg-warning text-dark">Por Descontar</span></td>
-                    </tr>
+                    {% endfor %}
                 </tbody>
             </table>
+            {% endif %}
         </div>
 
-        <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top border-secondary">
-            <span class="text-secondary small">Mostrando 4 de 112 transacciones del día</span>
+        <div class="d-flex flex-wrap justify-content-between align-items-center mt-3 pt-3 border-top border-secondary gap-2">
+            <span class="text-secondary small">Mostrando {{ reporte.total_registros }} registros verificados en PostgreSQL</span>
             <div class="fw-bold text-white fs-5">
-                Total Facturado Filtrado: <span class="font-monospace text-success">{{ stats.total_ventas_dia }}</span>
+                {{ reporte.etiqueta_total }}: <span class="font-monospace text-success">{{ reporte.total_filtrado_fmt }}</span>
             </div>
         </div>
     </div>

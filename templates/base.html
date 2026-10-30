@@ -16,7 +16,7 @@
     <!-- Custom POS Stylesheet -->
     <link rel="stylesheet" href="{% static 'css/estilos.css' %}">
 </head>
-<body class="pos-app-body">
+<body class="pos-app-body" data-authenticated-role="{{ rol_actual }}" data-focus-role="{{ rol_ui.focus_role|default:rol_actual }}">
     <!-- Topbar Header -->
     <header class="pos-navbar">
         <div class="d-flex align-items-center gap-2">
@@ -38,33 +38,38 @@
         </div>
 
         <div class="pos-header-info">
-            <!-- Terminal Status & Control de Caja (Semana 12) -->
+            <!-- Terminal Status & Control de Caja (Semana 12 - Exclusivo Admin y Cajero) -->
+            {% if 'caja_operacion' in permisos_usuario %}
             <button class="btn btn-outline-warning btn-sm fw-bold d-flex align-items-center gap-2 px-3 py-1 rounded-pill" data-bs-toggle="modal" data-bs-target="#modalControlCaja" title="Apertura, Cierre y Cuadratura de Caja">
                 <i class="bi bi-safe2-fill"></i>
-                <span class="d-none d-sm-inline">CAJA & CUADRATURA</span>
+                <span class="d-none d-sm-inline">CAJA &amp; CUADRATURA</span>
             </button>
+            {% endif %}
 
             <!-- Live Clock -->
             <div class="pos-clock" id="liveClock">00:00:00</div>
 
-            <!-- Perfil de Usuario Autenticado en Sesión -->
-            <div class="pos-user-badge-btn d-flex align-items-center gap-2" id="userProfileBadge">
-                <div class="pos-user-avatar" id="navAvatar" style="background-color: #f59e0b; color: #000; font-weight: 800;">
-                    {{ usuario_actual.nombre|slice:":2"|upper }}
+            <!-- Perfil de Usuario Autenticado en Sesión Real (AUD-010) -->
+            <div class="pos-user-badge-btn d-flex align-items-center gap-2" id="userProfileBadge" data-role="{{ rol_actual }}">
+                <div class="pos-user-avatar" id="navAvatar" style="background-color: {{ rol_ui.avatar_bg|default:'#f59e0b' }}; color: #000; font-weight: 800;">
+                    {{ avatar_iniciales|default:usuario_actual.nombre|slice:":2"|upper }}
                 </div>
                 <div class="d-none d-md-block text-start pe-1">
                     <div class="fw-bold nav-user-name text-white" id="navUserName">{{ usuario_actual.nombre }}</div>
                     <div class="nav-role-badge-tag" id="navRoleTag">
-                        <span class="role-pill-indicator" id="rolePillDot" style="background-color: #34d399;"></span>
-                        <span id="navRoleCargo" class="text-secondary small">{{ usuario_actual.cargo }}</span>
+                        <span class="role-pill-indicator" id="rolePillDot" style="background-color: {{ rol_ui.dot_color|default:'#34d399' }};"></span>
+                        <span id="navRoleCargo" class="text-secondary small">{{ usuario_actual.cargo.nombre|default:usuario_actual.cargo }}</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Logout / Lock -->
-            <a href="{% url 'login' %}" class="btn btn-outline-danger btn-sm px-3 py-1 fw-bold pos-logout-btn" title="Cerrar Turno / Salir">
-                <i class="bi bi-box-arrow-right me-1"></i> <span class="d-none d-sm-inline">Salir</span>
-            </a>
+            <!-- Logout Real mediante POST con CSRF (AUD-006) -->
+            <form method="POST" action="{% url 'logout' %}" class="d-inline m-0" id="logoutForm">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-danger btn-sm px-3 py-1 fw-bold pos-logout-btn" title="Cerrar Turno / Salir">
+                    <i class="bi bi-box-arrow-right me-1"></i> <span class="d-none d-sm-inline">Salir</span>
+                </button>
+            </form>
         </div>
     </header>
 
@@ -74,11 +79,15 @@
         <aside class="pos-sidebar" id="posSidebar">
             <div class="pos-sidebar-inner">
                 
-                <!-- Búsqueda rápida interna de módulos (opcional para agilidad) -->
+                <!-- Banner de Rol Autenticado en Servidor (AUD-010) -->
                 <div class="pos-sidebar-quick-role mb-3 p-2 rounded-3" id="sidebarRoleBanner">
                     <div class="d-flex align-items-center justify-content-between">
-                        <span class="small fw-bold text-uppercase" id="sidebarRoleTitle" style="font-size: 0.72rem; letter-spacing: 0.5px;">ROL: CAJERO</span>
-                        <span class="badge font-monospace" id="sidebarRoleFocusBadge" style="font-size: 0.65rem; background: rgba(16, 185, 129, 0.2); color: #34d399;">FOCO ACTIVO</span>
+                        <span class="small fw-bold text-uppercase" id="sidebarRoleTitle" style="font-size: 0.72rem; letter-spacing: 0.5px;">
+                            ROL: {{ usuario_actual.cargo.nombre|default:usuario_actual.cargo|upper }}
+                        </span>
+                        <span class="badge font-monospace" id="sidebarRoleFocusBadge" style="font-size: 0.65rem; background: {{ rol_ui.badge_bg|default:'rgba(16, 185, 129, 0.2)' }}; color: {{ rol_ui.badge_color|default:'#34d399' }};">
+                            FOCO: {{ rol_ui.focus_desc|default:"OPERACIÓN ACTIVA" }}
+                        </span>
                     </div>
                 </div>
 
@@ -87,7 +96,7 @@
                     <button class="pos-nav-accordion-header" type="button" data-group="ventas">
                         <span class="d-flex align-items-center gap-2">
                             <i class="bi bi-cart3 text-warning"></i>
-                            <span>Ventas & Salón</span>
+                            <span>Ventas &amp; Salón</span>
                         </span>
                         <div class="d-flex align-items-center gap-2">
                             <span class="badge bg-danger pos-nav-badge">POS</span>
@@ -95,30 +104,39 @@
                         </div>
                     </button>
                     <div class="pos-nav-accordion-collapse {% if request.resolver_match.url_name in 'pos,dashboard,mesas,ticket' %}show{% endif %}" id="group-ventas">
+                        {% if 'pos' in permisos_usuario %}
                         <a href="{% url 'pos' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'pos' %}active{% endif %}" data-focus-role="cajero">
                             <i class="bi bi-calculator"></i>
                             <span>Punto de Venta</span>
                             <span class="role-focus-tag d-none">MI ÁREA</span>
                         </a>
+                        {% endif %}
+                        {% if 'dashboard' in permisos_usuario %}
                         <a href="{% url 'dashboard' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" data-focus-role="admin">
                             <i class="bi bi-speedometer2"></i>
                             <span>Panel Principal</span>
                             <span class="role-focus-tag d-none">MI ÁREA</span>
                         </a>
+                        {% endif %}
+                        {% if 'mesas' in permisos_usuario %}
                         <a href="{% url 'mesas' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'mesas' %}active{% endif %}" data-focus-role="cajero">
                             <i class="bi bi-layout-text-window-reverse"></i>
                             <span>Mapa de Mesas</span>
-                            <span class="badge bg-secondary pos-nav-badge">12</span>
+                            <span class="badge bg-secondary pos-nav-badge">{{ nav_mesas_total|default:"12" }}</span>
                             <span class="role-focus-tag d-none">MI ÁREA</span>
                         </a>
+                        {% endif %}
+                        {% if 'ticket' in permisos_usuario %}
                         <a href="{% url 'ticket' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'ticket' %}active{% endif %}" data-focus-role="cajero">
                             <i class="bi bi-receipt-cutoff"></i>
                             <span>Ticket y Comandas</span>
                         </a>
+                        {% endif %}
                     </div>
                 </div>
 
                 <!-- GRUPO 2: Producción KDS & BDS -->
+                {% if 'cocina' in permisos_usuario or 'bar' in permisos_usuario or 'distribucion' in permisos_usuario %}
                 <div class="pos-nav-accordion-group mt-2">
                     <button class="pos-nav-accordion-header" type="button" data-group="produccion">
                         <span class="d-flex align-items-center gap-2">
@@ -131,84 +149,109 @@
                         </div>
                     </button>
                     <div class="pos-nav-accordion-collapse {% if request.resolver_match.url_name in 'cocina,bar,distribucion' %}show{% endif %}" id="group-produccion">
+                        {% if 'cocina' in permisos_usuario %}
                         <a href="{% url 'cocina' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'cocina' %}active{% endif %}" data-focus-role="cocina">
                             <i class="bi bi-fire text-danger"></i>
                             <span>Cocina (KDS)</span>
-                            <span class="badge bg-warning text-dark pos-nav-badge">3</span>
+                            <span class="badge bg-warning text-dark pos-nav-badge">{{ nav_cocina_activos|default:"0" }}</span>
                             <span class="role-focus-tag d-none">MI ÁREA</span>
                         </a>
+                        {% endif %}
+                        {% if 'bar' in permisos_usuario %}
                         <a href="{% url 'bar' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'bar' %}active{% endif %}" data-focus-role="bar">
                             <i class="bi bi-cup-straw text-info"></i>
                             <span>Bar (BDS)</span>
-                            <span class="badge bg-info text-dark pos-nav-badge">2</span>
+                            <span class="badge bg-info text-dark pos-nav-badge">{{ nav_bar_activos|default:"0" }}</span>
                             <span class="role-focus-tag d-none">MI ÁREA</span>
                         </a>
+                        {% endif %}
+                        {% if 'distribucion' in permisos_usuario %}
                         <a href="{% url 'distribucion' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'distribucion' %}active{% endif %}" data-focus-role="admin">
                             <i class="bi bi-diagram-3"></i>
                             <span>Distribución</span>
                         </a>
+                        {% endif %}
                     </div>
                 </div>
+                {% endif %}
 
-                <!-- GRUPO 3: Catálogo & Colaboradores -->
+                <!-- GRUPO 3: Catálogo & Colaboradores (Exclusivo Admin) -->
+                {% if 'productos' in permisos_usuario or 'menus' in permisos_usuario or 'fiados' in permisos_usuario or 'usuarios' in permisos_usuario %}
                 <div class="pos-nav-accordion-group mt-2">
                     <button class="pos-nav-accordion-header" type="button" data-group="catalogo">
                         <span class="d-flex align-items-center gap-2">
                             <i class="bi bi-boxes text-info"></i>
-                            <span>Catálogo & Personal</span>
+                            <span>Catálogo &amp; Personal</span>
                         </span>
                         <div class="d-flex align-items-center gap-2">
                             <i class="bi bi-chevron-down accordion-arrow"></i>
                         </div>
                     </button>
                     <div class="pos-nav-accordion-collapse {% if request.resolver_match.url_name in 'productos,menus,fiados,usuarios' %}show{% endif %}" id="group-catalogo">
+                        {% if 'productos' in permisos_usuario %}
                         <a href="{% url 'productos' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'productos' %}active{% endif %}" data-focus-role="admin">
                             <i class="bi bi-boxes"></i>
                             <span>Productos</span>
                         </a>
+                        {% endif %}
+                        {% if 'menus' in permisos_usuario %}
                         <a href="{% url 'menus' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'menus' %}active{% endif %}" data-focus-role="admin">
                             <i class="bi bi-stars"></i>
-                            <span>Menús & Combos</span>
+                            <span>Menús &amp; Combos</span>
                         </a>
+                        {% endif %}
+                        {% if 'fiados' in permisos_usuario %}
                         <a href="{% url 'fiados' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'fiados' %}active{% endif %}" data-focus-role="admin">
                             <i class="bi bi-journal-bookmark-fill"></i>
                             <span>Fiados Personal</span>
                         </a>
+                        {% endif %}
+                        {% if 'usuarios' in permisos_usuario %}
                         <a href="{% url 'usuarios' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'usuarios' %}active{% endif %}" data-focus-role="admin">
                             <i class="bi bi-people-fill"></i>
                             <span>Usuarios y Cargos</span>
                             <span class="badge bg-secondary font-monospace" style="font-size: 0.65rem;">ADMIN</span>
                         </a>
+                        {% endif %}
                     </div>
                 </div>
+                {% endif %}
 
-                <!-- GRUPO 4: Reportes & Administración -->
+                <!-- GRUPO 4: Reportes & Administración (Exclusivo Admin) -->
+                {% if 'estadisticas' in permisos_usuario or 'reportes' in permisos_usuario or 'configuracion' in permisos_usuario %}
                 <div class="pos-nav-accordion-group mt-2">
                     <button class="pos-nav-accordion-header" type="button" data-group="admin">
                         <span class="d-flex align-items-center gap-2">
                             <i class="bi bi-sliders text-success"></i>
-                            <span>Reportes & Sistema</span>
+                            <span>Reportes &amp; Sistema</span>
                         </span>
                         <div class="d-flex align-items-center gap-2">
                             <i class="bi bi-chevron-down accordion-arrow"></i>
                         </div>
                     </button>
                     <div class="pos-nav-accordion-collapse {% if request.resolver_match.url_name in 'estadisticas,reportes,configuracion' %}show{% endif %}" id="group-admin">
+                        {% if 'estadisticas' in permisos_usuario %}
                         <a href="{% url 'estadisticas' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'estadisticas' %}active{% endif %}" data-focus-role="admin">
                             <i class="bi bi-graph-up-arrow"></i>
                             <span>Estadísticas</span>
                         </a>
+                        {% endif %}
+                        {% if 'reportes' in permisos_usuario %}
                         <a href="{% url 'reportes' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'reportes' %}active{% endif %}" data-focus-role="admin">
                             <i class="bi bi-file-earmark-bar-graph"></i>
                             <span>Centro de Reportes</span>
                         </a>
+                        {% endif %}
+                        {% if 'configuracion' in permisos_usuario %}
                         <a href="{% url 'configuracion' %}" class="pos-nav-link {% if request.resolver_match.url_name == 'configuracion' %}active{% endif %}" data-focus-role="admin">
                             <i class="bi bi-gear-fill"></i>
                             <span>Configuración</span>
                             <span class="badge bg-secondary font-monospace" style="font-size: 0.65rem;">ADMIN</span>
                         </a>
+                        {% endif %}
                     </div>
                 </div>
+                {% endif %}
 
             </div>
 
@@ -216,7 +259,7 @@
             <div class="pos-sidebar-footer">
                 <small class="text-secondary" style="font-size: 0.72rem;">
                     Parque Safari POS &bull; Producción<br>
-                    Optimizado Tablet & Terminal 1080p
+                    Optimizado Tablet &amp; Terminal 1080p
                 </small>
             </div>
         </aside>
@@ -227,207 +270,421 @@
             {% endblock %}
         </main>
     </div>
-+
-+    <!-- ======================================================================
-+         MODAL DE APERTURA, CIERRE Y CUADRATURA DE CAJA (Semana 12)
-+         ====================================================================== -->
-+    <div class="modal fade" id="modalControlCaja" tabindex="-1" aria-hidden="true">
-+        <div class="modal-dialog modal-lg modal-dialog-centered">
-+            <div class="modal-content bg-dark border-secondary">
-+                <div class="modal-header bg-black bg-opacity-40 border-secondary">
-+                    <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
-+                        <i class="bi bi-safe2-fill text-warning"></i>
-+                        <span>Gestión y Cuadratura de Caja — Semana 12</span>
-+                    </h5>
-+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-+                </div>
-+                <div class="modal-body p-4">
-+                    <!-- Pestañas: Apertura / Cierre y Cuadratura -->
-+                    <ul class="nav nav-pills mb-4 gap-2" id="cajaTabs" role="tablist">
-+                        <li class="nav-item">
-+                            <button class="nav-link active px-4 py-2 fw-bold" id="caja-cierre-tab" data-bs-toggle="pill" data-bs-target="#tab-cierre-cuadratura" type="button">
-+                                <i class="bi bi-calculator me-1"></i> Cierre & Cuadratura
-+                            </button>
-+                        </li>
-+                        <li class="nav-item">
-+                            <button class="nav-link px-4 py-2 fw-bold" id="caja-apertura-tab" data-bs-toggle="pill" data-bs-target="#tab-apertura-caja" type="button">
-+                                <i class="bi bi-unlock-fill me-1"></i> Apertura de Caja
-+                            </button>
-+                        </li>
-+                    </ul>
-+
-+                    <div class="tab-content" id="cajaTabContent">
-+                        <!-- PESTAÑA 1: CIERRE Y CUADRATURA CON DESGLOSE OBLIGATORIO -->
-+                        <div class="tab-pane fade show active" id="tab-cierre-cuadratura">
-+                            <div class="alert alert-secondary py-2 px-3 small rounded-3 mb-3 d-flex justify-content-between align-items-center">
-+                                <div>
-+                                    <strong>Terminal:</strong> Caja 01 - Principal &bull; <strong>Cajero:</strong> Jean Valenzuela
-+                                </div>
-+                                <span class="badge bg-success">Caja Abierta</span>
-+                            </div>
-+
-+                            <p class="text-secondary small mb-3">
-+                                Ingrese la cantidad física de billetes y monedas que posee en gaveta para realizar la cuadratura contra el sistema:
-+                            </p>
-+
-+                            <!-- Calculadora de Billetes y Monedas -->
-+                            <div class="row g-3">
-+                                <!-- Columna Billetes -->
-+                                <div class="col-md-6">
-+                                    <div class="p-3 rounded-3 border border-secondary bg-black bg-opacity-25">
-+                                        <h6 class="fw-bold text-warning mb-3 d-flex align-items-center gap-2">
-+                                            <i class="bi bi-cash-stack"></i>
-+                                            <span>Billetes en Caja</span>
-+                                        </h6>
-+                                        <div class="mb-2 d-flex align-items-center justify-content-between">
-+                                            <label class="small text-light fw-bold">$20.000:</label>
-+                                            <input type="number" min="0" value="3" class="form-control form-control-sm text-end fw-bold font-monospace bg-dark text-white border-secondary cuadratura-input" data-denominacion="20000" style="width: 100px;" onchange="calcularCuadratura()" onkeyup="calcularCuadratura()">
-+                                        </div>
-+                                        <div class="mb-2 d-flex align-items-center justify-content-between">
-+                                            <label class="small text-light fw-bold">$10.000:</label>
-+                                            <input type="number" min="0" value="5" class="form-control form-control-sm text-end fw-bold font-monospace bg-dark text-white border-secondary cuadratura-input" data-denominacion="10000" style="width: 100px;" onchange="calcularCuadratura()" onkeyup="calcularCuadratura()">
-+                                        </div>
-+                                        <div class="mb-2 d-flex align-items-center justify-content-between">
-+                                            <label class="small text-light fw-bold">$5.000:</label>
-+                                            <input type="number" min="0" value="8" class="form-control form-control-sm text-end fw-bold font-monospace bg-dark text-white border-secondary cuadratura-input" data-denominacion="5000" style="width: 100px;" onchange="calcularCuadratura()" onkeyup="calcularCuadratura()">
-+                                        </div>
-+                                        <div class="mb-2 d-flex align-items-center justify-content-between">
-+                                            <label class="small text-light fw-bold">$1.000:</label>
-+                                            <input type="number" min="0" value="15" class="form-control form-control-sm text-end fw-bold font-monospace bg-dark text-white border-secondary cuadratura-input" data-denominacion="1000" style="width: 100px;" onchange="calcularCuadratura()" onkeyup="calcularCuadratura()">
-+                                        </div>
-+                                    </div>
-+                                </div>
-+
-+                                <!-- Columna Monedas -->
-+                                <div class="col-md-6">
-+                                    <div class="p-3 rounded-3 border border-secondary bg-black bg-opacity-25">
-+                                        <h6 class="fw-bold text-info mb-3 d-flex align-items-center gap-2">
-+                                            <i class="bi bi-coin"></i>
-+                                            <span>Monedas en Caja</span>
-+                                        </h6>
-+                                        <div class="mb-2 d-flex align-items-center justify-content-between">
-+                                            <label class="small text-light fw-bold">$500:</label>
-+                                            <input type="number" min="0" value="20" class="form-control form-control-sm text-end fw-bold font-monospace bg-dark text-white border-secondary cuadratura-input" data-denominacion="500" style="width: 100px;" onchange="calcularCuadratura()" onkeyup="calcularCuadratura()">
-+                                        </div>
-+                                        <div class="mb-2 d-flex align-items-center justify-content-between">
-+                                            <label class="small text-light fw-bold">$100:</label>
-+                                            <input type="number" min="0" value="45" class="form-control form-control-sm text-end fw-bold font-monospace bg-dark text-white border-secondary cuadratura-input" data-denominacion="100" style="width: 100px;" onchange="calcularCuadratura()" onkeyup="calcularCuadratura()">
-+                                        </div>
-+                                        <div class="mb-2 d-flex align-items-center justify-content-between">
-+                                            <label class="small text-light fw-bold">$50:</label>
-+                                            <input type="number" min="0" value="10" class="form-control form-control-sm text-end fw-bold font-monospace bg-dark text-white border-secondary cuadratura-input" data-denominacion="50" style="width: 100px;" onchange="calcularCuadratura()" onkeyup="calcularCuadratura()">
-+                                        </div>
-+                                        <div class="mb-2 d-flex align-items-center justify-content-between">
-+                                            <label class="small text-light fw-bold">$5:</label>
-+                                            <input type="number" min="0" value="0" class="form-control form-control-sm text-end fw-bold font-monospace bg-dark text-white border-secondary cuadratura-input" data-denominacion="5" style="width: 100px;" onchange="calcularCuadratura()" onkeyup="calcularCuadratura()">
-+                                        </div>
-+                                        <div class="mb-2 d-flex align-items-center justify-content-between">
-+                                            <label class="small text-light fw-bold">$1:</label>
-+                                            <input type="number" min="0" value="0" class="form-control form-control-sm text-end fw-bold font-monospace bg-dark text-white border-secondary cuadratura-input" data-denominacion="1" style="width: 100px;" onchange="calcularCuadratura()" onkeyup="calcularCuadratura()">
-+                                        </div>
-+                                    </div>
-+                                </div>
-+                            </div>
-+
-+                            <!-- Resumen Financiero de Cuadratura -->
-+                            <div class="card bg-black border border-secondary p-3 mt-3">
-+                                <div class="row text-center g-2">
-+                                    <div class="col-4 border-end border-secondary">
-+                                        <small class="text-secondary fw-bold d-block">TOTAL CONTADO</small>
-+                                        <span class="fs-4 fw-bold text-success font-monospace" id="cuadraturaTotalContado">$180.000</span>
-+                                    </div>
-+                                    <div class="col-4 border-end border-secondary">
-+                                        <small class="text-secondary fw-bold d-block">SISTEMA ESPERADO</small>
-+                                        <span class="fs-4 fw-bold text-warning font-monospace" id="cuadraturaSistemaEsperado">$180.000</span>
-+                                    </div>
-+                                    <div class="col-4">
-+                                        <small class="text-secondary fw-bold d-block">DIFERENCIA</small>
-+                                        <span class="fs-4 fw-bold text-white font-monospace" id="cuadraturaDiferencia">$0</span>
-+                                    </div>
-+                                </div>
-+                            </div>
-+
-+                            <div class="mt-3">
-+                                <button type="button" class="btn btn-danger w-100 fw-bold py-2" onclick="confirmarCierreCaja()">
-+                                    <i class="bi bi-lock-fill me-1"></i> FINALIZAR CUADRATURA Y CERRAR CAJA
-+                                </button>
-+                            </div>
-+                        </div>
-+
-+                        <!-- PESTAÑA 2: APERTURA DE CAJA CON MONTO DE SENCILLO -->
-+                        <div class="tab-pane fade" id="tab-apertura-caja">
-+                            <div class="p-3 rounded-3 border border-secondary bg-black bg-opacity-25">
-+                                <h6 class="fw-bold text-white mb-2">Apertura de Jornada y Turno</h6>
-+                                <p class="text-secondary small mb-3">
-+                                    Indicar el monto en efectivo disponible en gaveta al momento de abrir la caja para dar vueltos y sencillo:
-+                                </p>
-+                                <div class="mb-3">
-+                                    <label class="form-label small text-secondary fw-bold">MONTO FONDO INICIAL (SENCILLO / VUELTOS):</label>
-+                                    <div class="input-group">
-+                                        <span class="input-group-text bg-dark border-secondary text-warning fw-bold">$</span>
-+                                        <input type="number" id="montoAperturaInput" class="form-control bg-dark border-secondary text-white fw-bold fs-5 font-monospace" value="50000" step="5000">
-+                                    </div>
-+                                    <small class="text-secondary">Monto estándar recomendado: $50.000 CLP</small>
-+                                </div>
-+                                <div class="mb-3">
-+                                    <label class="form-label small text-secondary fw-bold">OBSERVACIONES DE APERTURA:</label>
-+                                    <textarea class="form-control bg-dark border-secondary text-white small" rows="2" placeholder="Ej: Gaveta con billetes chicos y monedas para el inicio de jornada."></textarea>
-+                                </div>
-+                                <button type="button" class="btn btn-warning w-100 fw-bold py-2" onclick="alert('Caja abierta exitosamente con fondo inicial de $' + document.getElementById('montoAperturaInput').value + '. Registrado en auditoría.')">
-+                                    <i class="bi bi-check-circle-fill me-1"></i> CONFIRMAR APERTURA DE CAJA
-+                                </button>
-+                            </div>
-+                        </div>
-+                    </div>
-+                </div>
-+            </div>
-+        </div>
-+    </div>
-+
-+    <script>
-+    function calcularCuadratura() {
-+        let total = 0;
-+        const inputs = document.querySelectorAll('.cuadratura-input');
-+        inputs.forEach(input => {
-+            const denom = parseInt(input.dataset.denominacion) || 0;
-+            const qty = parseInt(input.value) || 0;
-+            total += (denom * qty);
-+        });
-+
-+        const totalContadoEl = document.getElementById('cuadraturaTotalContado');
-+        const esperadoEl = document.getElementById('cuadraturaSistemaEsperado');
-+        const difEl = document.getElementById('cuadraturaDiferencia');
-+
-+        if (totalContadoEl) totalContadoEl.textContent = '$' + total.toLocaleString('es-CL');
-+        
-+        // Supongamos esperado fijo de $180.000 para demostración
-+        const esperado = 180000;
-+        const dif = total - esperado;
-+        if (difEl) {
-+            if (dif === 0) {
-+                difEl.textContent = '$0 (Cuadratura Exacta)';
-+                difEl.className = 'fs-4 fw-bold text-success font-monospace';
-+            } else if (dif > 0) {
-+                difEl.textContent = '+$' + dif.toLocaleString('es-CL') + ' (Sobrante)';
-+                difEl.className = 'fs-4 fw-bold text-info font-monospace';
-+            } else {
-+                difEl.textContent = '-$' + Math.abs(dif).toLocaleString('es-CL') + ' (Faltante)';
-+                difEl.className = 'fs-4 fw-bold text-danger font-monospace';
-+            }
-+        }
-+    }
-+
-+    function confirmarCierreCaja() {
-+        alert('¡Cuadratura de Caja completada con éxito!\n\nSe ha generado el arqueo de cierre, guardado en base de datos PostgreSQL y registrado en el log de auditoría.');
-+        const modalEl = document.getElementById('modalControlCaja');
-+        if (modalEl && typeof bootstrap !== 'undefined') {
-+            const m = bootstrap.Modal.getInstance(modalEl);
-+            if (m) m.hide();
-+        }
-+    }
-+    </script>
-+
-+    <!-- Bootstrap Bundle JS -->
+
+    {% if 'caja_operacion' in permisos_usuario %}
+    <!-- ======================================================================
+         MODAL DE APERTURA, CIERRE Y CUADRATURA DE CAJA (Fase 04 — PostgreSQL)
+         ====================================================================== -->
+    <div class="modal fade" id="modalControlCaja" tabindex="-1" aria-hidden="true" data-efectivo-esperado="{{ caja_estado.efectivo_esperado|default:0 }}" data-caja-abierta="{{ caja_estado.abierta|yesno:'true,false' }}">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content bg-dark border-secondary">
+                <div class="modal-header bg-black bg-opacity-40 border-secondary">
+                    <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                        <i class="bi bi-safe2-fill text-warning"></i>
+                        <span>Gestión y Cuadratura de Caja</span>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <!-- Banner de Estado Vivo de Sesión de Caja -->
+                    <div class="alert alert-secondary py-2 px-3 small rounded-3 mb-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <div>
+                            <strong>Terminal:</strong> <span id="cajaTerminalLabel">{{ caja_estado.terminal_nombre|default:usuario_actual.caja_asignada|default:"Terminal 01 - Caja Principal" }}</span>
+                            &bull; <strong>Operador:</strong> <span id="cajaOperadorLabel">{{ caja_estado.cajero_nombre|default:usuario_actual.nombre }}</span>
+                            {% if caja_estado.abierta %}
+                            &bull; <span class="text-light">Apertura: <strong id="cajaFechaAperturaLabel">{{ caja_estado.fecha_apertura }}</strong></span>
+                            {% endif %}
+                        </div>
+                        <span class="badge {% if caja_estado.abierta %}bg-success{% else %}bg-danger{% endif %} px-3 py-1" id="cajaEstadoBadge">
+                            {% if caja_estado.abierta %}Caja Abierta{% else %}Caja Cerrada{% endif %}
+                        </span>
+                    </div>
+
+                    <!-- Pestañas: Apertura / Cierre / Historial -->
+                    <ul class="nav nav-pills mb-4 gap-2" id="cajaTabs" role="tablist">
+                        <li class="nav-item">
+                            <button class="nav-link {% if caja_estado.abierta %}active{% endif %} px-3 py-2 fw-bold" id="caja-cierre-tab" data-bs-toggle="pill" data-bs-target="#tab-cierre-cuadratura" type="button">
+                                <i class="bi bi-calculator me-1"></i> Cierre &amp; Cuadratura
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link {% if not caja_estado.abierta %}active{% endif %} px-3 py-2 fw-bold" id="caja-apertura-tab" data-bs-toggle="pill" data-bs-target="#tab-apertura-caja" type="button">
+                                <i class="bi bi-unlock-fill me-1"></i> Apertura de Caja
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link px-3 py-2 fw-bold" id="caja-historial-tab" data-bs-toggle="pill" data-bs-target="#tab-historial-caja" type="button">
+                                <i class="bi bi-clock-history me-1"></i> Historial Arqueos
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div id="cajaFeedbackAlert" class="alert d-none py-2 px-3 small mb-3" role="alert"></div>
+
+                    <div class="tab-content" id="cajaTabContent">
+                        <!-- PESTAÑA 1: CIERRE Y CUADRATURA CON DESGLOSE DE DENOMINACIONES -->
+                        <div class="tab-pane fade {% if caja_estado.abierta %}show active{% endif %}" id="tab-cierre-cuadratura">
+                            <!-- Desglose de Medios de Pago de la Sesión Actual (desde PostgreSQL) -->
+                            <div class="row g-2 mb-3 text-center">
+                                <div class="col-6 col-md-3">
+                                    <div class="p-2 rounded-3 bg-black bg-opacity-40 border border-secondary">
+                                        <small class="text-secondary d-block" style="font-size: 0.7rem;">FONDO INICIAL</small>
+                                        <span class="fw-bold text-light font-monospace" id="cajaResumenFondo">{{ caja_estado.monto_apertura_fmt|default:"$0" }}</span>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <div class="p-2 rounded-3 bg-black bg-opacity-40 border border-secondary">
+                                        <small class="text-secondary d-block" style="font-size: 0.7rem;">VENTAS EFECTIVO</small>
+                                        <span class="fw-bold text-success font-monospace" id="cajaResumenEfectivo">{{ caja_estado.ventas_efectivo_fmt|default:"$0" }}</span>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <div class="p-2 rounded-3 bg-black bg-opacity-40 border border-secondary">
+                                        <small class="text-secondary d-block" style="font-size: 0.7rem;">TARJETAS / TRANSF.</small>
+                                        <span class="fw-bold text-info font-monospace" id="cajaResumenTarjetas">{{ caja_estado.ventas_tarjetas_fmt|default:"$0" }}</span>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <div class="p-2 rounded-3 bg-black bg-opacity-40 border border-secondary">
+                                        <small class="text-secondary d-block" style="font-size: 0.7rem;">VALES FIADO</small>
+                                        <span class="fw-bold text-warning font-monospace" id="cajaResumenFiado">{{ caja_estado.ventas_fiado_fmt|default:"$0" }}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <p class="text-secondary small mb-3">
+                                Ingrese la cantidad física de billetes y monedas en gaveta para realizar la cuadratura contra el efectivo esperado en PostgreSQL (los pagos con tarjeta, transferencia o fiado no se contabilizan como efectivo):
+                            </p>
+
+                            <!-- Calculadora de Billetes y Monedas -->
+                            <div class="row g-3">
+                                <!-- Columna Billetes -->
+                                <div class="col-md-6">
+                                    <div class="p-3 rounded-3 border border-secondary bg-black bg-opacity-25">
+                                        <h6 class="fw-bold text-warning mb-3 d-flex align-items-center gap-2">
+                                            <i class="bi bi-cash-stack"></i>
+                                            <span>Billetes en Caja</span>
+                                        </h6>
+                                        <div class="mb-2 d-flex align-items-center justify-content-between">
+                                            <label class="small text-light fw-bold" for="inputBillete20000">$20.000:</label>
+                                            <input type="number" id="inputBillete20000" min="0" value="0" class="form-control form-control-sm text-end fw-bold font-monospace bg-dark text-white border-secondary cuadratura-input" data-denominacion="20000" data-field="billetes_20000" style="width: 100px;" oninput="calcularCuadratura()">
+                                        </div>
+                                        <div class="mb-2 d-flex align-items-center justify-content-between">
+                                            <label class="small text-light fw-bold" for="inputBillete10000">$10.000:</label>
+                                            <input type="number" id="inputBillete10000" min="0" value="0" class="form-control form-control-sm text-end fw-bold font-monospace bg-dark text-white border-secondary cuadratura-input" data-denominacion="10000" data-field="billetes_10000" style="width: 100px;" oninput="calcularCuadratura()">
+                                        </div>
+                                        <div class="mb-2 d-flex align-items-center justify-content-between">
+                                            <label class="small text-light fw-bold" for="inputBillete5000">$5.000:</label>
+                                            <input type="number" id="inputBillete5000" min="0" value="0" class="form-control form-control-sm text-end fw-bold font-monospace bg-dark text-white border-secondary cuadratura-input" data-denominacion="5000" data-field="billetes_5000" style="width: 100px;" oninput="calcularCuadratura()">
+                                        </div>
+                                        <div class="mb-2 d-flex align-items-center justify-content-between">
+                                            <label class="small text-light fw-bold" for="inputBillete1000">$1.000:</label>
+                                            <input type="number" id="inputBillete1000" min="0" value="0" class="form-control form-control-sm text-end fw-bold font-monospace bg-dark text-white border-secondary cuadratura-input" data-denominacion="1000" data-field="billetes_1000" style="width: 100px;" oninput="calcularCuadratura()">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Columna Monedas -->
+                                <div class="col-md-6">
+                                    <div class="p-3 rounded-3 border border-secondary bg-black bg-opacity-25">
+                                        <h6 class="fw-bold text-info mb-3 d-flex align-items-center gap-2">
+                                            <i class="bi bi-coin"></i>
+                                            <span>Monedas en Caja</span>
+                                        </h6>
+                                        <div class="mb-2 d-flex align-items-center justify-content-between">
+                                            <label class="small text-light fw-bold" for="inputMoneda500">$500:</label>
+                                            <input type="number" id="inputMoneda500" min="0" value="0" class="form-control form-control-sm text-end fw-bold font-monospace bg-dark text-white border-secondary cuadratura-input" data-denominacion="500" data-field="monedas_500" style="width: 100px;" oninput="calcularCuadratura()">
+                                        </div>
+                                        <div class="mb-2 d-flex align-items-center justify-content-between">
+                                            <label class="small text-light fw-bold" for="inputMoneda100">$100:</label>
+                                            <input type="number" id="inputMoneda100" min="0" value="0" class="form-control form-control-sm text-end fw-bold font-monospace bg-dark text-white border-secondary cuadratura-input" data-denominacion="100" data-field="monedas_100" style="width: 100px;" oninput="calcularCuadratura()">
+                                        </div>
+                                        <div class="mb-2 d-flex align-items-center justify-content-between">
+                                            <label class="small text-light fw-bold" for="inputMoneda50">$50:</label>
+                                            <input type="number" id="inputMoneda50" min="0" value="0" class="form-control form-control-sm text-end fw-bold font-monospace bg-dark text-white border-secondary cuadratura-input" data-denominacion="50" data-field="monedas_50" style="width: 100px;" oninput="calcularCuadratura()">
+                                        </div>
+                                        <div class="mb-2 d-flex align-items-center justify-content-between">
+                                            <label class="small text-light fw-bold" for="inputMoneda5">$5:</label>
+                                            <input type="number" id="inputMoneda5" min="0" value="0" class="form-control form-control-sm text-end fw-bold font-monospace bg-dark text-white border-secondary cuadratura-input" data-denominacion="5" data-field="monedas_5" style="width: 100px;" oninput="calcularCuadratura()">
+                                        </div>
+                                        <div class="mb-2 d-flex align-items-center justify-content-between">
+                                            <label class="small text-light fw-bold" for="inputMoneda1">$1:</label>
+                                            <input type="number" id="inputMoneda1" min="0" value="0" class="form-control form-control-sm text-end fw-bold font-monospace bg-dark text-white border-secondary cuadratura-input" data-denominacion="1" data-field="monedas_1" style="width: 100px;" oninput="calcularCuadratura()">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Resumen Financiero de Cuadratura -->
+                            <div class="card bg-black border border-secondary p-3 mt-3">
+                                <div class="row text-center g-2">
+                                    <div class="col-4 border-end border-secondary">
+                                        <small class="text-secondary fw-bold d-block">TOTAL CONTADO</small>
+                                        <span class="fs-5 fw-bold text-success font-monospace" id="cuadraturaTotalContado">$0</span>
+                                    </div>
+                                    <div class="col-4 border-end border-secondary">
+                                        <small class="text-secondary fw-bold d-block">EFECTIVO ESPERADO</small>
+                                        <span class="fs-5 fw-bold text-warning font-monospace" id="cuadraturaSistemaEsperado">{{ caja_estado.efectivo_esperado_fmt|default:"$0" }}</span>
+                                    </div>
+                                    <div class="col-4">
+                                        <small class="text-secondary fw-bold d-block">DIFERENCIA</small>
+                                        <span class="fs-6 fw-bold text-white font-monospace" id="cuadraturaDiferencia">$0</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mt-3">
+                                <label class="form-label small text-secondary fw-bold" for="observacionesCierreInput">OBSERVACIONES DE ARQUEO (OPCIONAL):</label>
+                                <input type="text" id="observacionesCierreInput" class="form-control form-control-sm bg-dark border-secondary text-white mb-3" placeholder="Ej: Arqueo de cambio de turno sin novedades.">
+                                <button type="button" class="btn btn-danger w-100 fw-bold py-2" id="btnConfirmarCierreCaja" onclick="confirmarOperacionCaja('cierre')">
+                                    <i class="bi bi-lock-fill me-1"></i> FINALIZAR CUADRATURA Y CERRAR CAJA
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- PESTAÑA 2: APERTURA DE CAJA CON MONTO DE SENCILLO -->
+                        <div class="tab-pane fade {% if not caja_estado.abierta %}show active{% endif %}" id="tab-apertura-caja">
+                            <div class="p-3 rounded-3 border border-secondary bg-black bg-opacity-25">
+                                <h6 class="fw-bold text-white mb-2">Apertura de Jornada y Turno</h6>
+                                <p class="text-secondary small mb-3">
+                                    Indique el monto en efectivo disponible en gaveta al abrir la caja para dar vueltos y sencillo:
+                                </p>
+                                <div class="mb-3">
+                                    <label class="form-label small text-secondary fw-bold" for="montoAperturaInput">MONTO FONDO INICIAL (SENCILLO / VUELTOS):</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-dark border-secondary text-warning fw-bold">$</span>
+                                        <input type="number" id="montoAperturaInput" min="0" class="form-control bg-dark border-secondary text-white fw-bold fs-5 font-monospace" value="50000" step="1000">
+                                    </div>
+                                    <small class="text-secondary">Monto estándar recomendado: $50.000 CLP</small>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small text-secondary fw-bold" for="observacionesAperturaInput">OBSERVACIONES DE APERTURA:</label>
+                                    <textarea id="observacionesAperturaInput" class="form-control bg-dark border-secondary text-white small" rows="2" placeholder="Ej: Gaveta con billetes chicos y monedas para el inicio de jornada."></textarea>
+                                </div>
+                                <button type="button" class="btn btn-warning w-100 fw-bold py-2" id="btnConfirmarAperturaCaja" onclick="confirmarOperacionCaja('apertura')">
+                                    <i class="bi bi-check-circle-fill me-1"></i> CONFIRMAR APERTURA DE CAJA
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- PESTAÑA 3: HISTORIAL DE ARQUEOS RECIENTES -->
+                        <div class="tab-pane fade" id="tab-historial-caja">
+                            <div class="table-responsive">
+                                <table class="pos-table-custom">
+                                    <thead>
+                                        <tr>
+                                            <th>SESIÓN</th>
+                                            <th>CAJERO</th>
+                                            <th>CIERRE</th>
+                                            <th>ESPERADO</th>
+                                            <th>CONTADO</th>
+                                            <th>DIFERENCIA</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tablaHistorialCierresCaja">
+                                        {% for c in caja_estado.ultimos_cierres %}
+                                        <tr>
+                                            <td class="font-monospace text-warning fw-bold">#{{ c.id }}</td>
+                                            <td class="text-white">{{ c.cajero }}</td>
+                                            <td class="text-secondary small font-monospace">{{ c.fecha_cierre }}</td>
+                                            <td class="font-monospace text-light">{{ c.esperado_fmt }}</td>
+                                            <td class="font-monospace text-info fw-bold">{{ c.contado_fmt }}</td>
+                                            <td class="font-monospace {% if c.diferencia == 0 %}text-success{% elif c.diferencia > 0 %}text-info{% else %}text-danger{% endif %} fw-bold">{{ c.diferencia_fmt }}</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="6" class="text-center text-secondary py-3">No hay cierres de caja registrados aún.</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function obtenerEfectivoEsperadoActual() {
+        const modalEl = document.getElementById('modalControlCaja');
+        if (!modalEl) return 0;
+        return parseInt(modalEl.dataset.efectivoEsperado || '0', 10) || 0;
+    }
+
+    function calcularCuadratura() {
+        let total = 0;
+        const inputs = document.querySelectorAll('.cuadratura-input');
+        inputs.forEach(input => {
+            const denom = parseInt(input.dataset.denominacion, 10) || 0;
+            const qty = Math.max(0, parseInt(input.value, 10) || 0);
+            total += (denom * qty);
+        });
+
+        const totalContadoEl = document.getElementById('cuadraturaTotalContado');
+        const difEl = document.getElementById('cuadraturaDiferencia');
+        const esperado = obtenerEfectivoEsperadoActual();
+
+        if (totalContadoEl) totalContadoEl.textContent = '$' + total.toLocaleString('es-CL');
+
+        const dif = total - esperado;
+        if (difEl) {
+            if (dif === 0) {
+                difEl.textContent = '$0 (Cuadratura Exacta)';
+                difEl.className = 'fs-6 fw-bold text-success font-monospace';
+            } else if (dif > 0) {
+                difEl.textContent = '+$' + dif.toLocaleString('es-CL') + ' (Sobrante)';
+                difEl.className = 'fs-6 fw-bold text-info font-monospace';
+            } else {
+                difEl.textContent = '-$' + Math.abs(dif).toLocaleString('es-CL') + ' (Faltante)';
+                difEl.className = 'fs-6 fw-bold text-danger font-monospace';
+            }
+        }
+    }
+
+    function actualizarVistaModalCaja(caja) {
+        if (!caja) return;
+        const modalEl = document.getElementById('modalControlCaja');
+        if (modalEl) {
+            modalEl.dataset.efectivoEsperado = String(caja.efectivo_esperado || 0);
+            modalEl.dataset.cajaAbierta = caja.abierta ? 'true' : 'false';
+        }
+        const badgeEl = document.getElementById('cajaEstadoBadge');
+        if (badgeEl) {
+            badgeEl.textContent = caja.abierta ? 'Caja Abierta' : 'Caja Cerrada';
+            badgeEl.className = 'badge px-3 py-1 ' + (caja.abierta ? 'bg-success' : 'bg-danger');
+        }
+        const espEl = document.getElementById('cuadraturaSistemaEsperado');
+        if (espEl) espEl.textContent = caja.efectivo_esperado_fmt || '$0';
+        const fEl = document.getElementById('cajaResumenFondo');
+        if (fEl) fEl.textContent = caja.monto_apertura_fmt || '$0';
+        const efEl = document.getElementById('cajaResumenEfectivo');
+        if (efEl) efEl.textContent = caja.ventas_efectivo_fmt || '$0';
+        const tjEl = document.getElementById('cajaResumenTarjetas');
+        if (tjEl) tjEl.textContent = caja.ventas_tarjetas_fmt || '$0';
+        const fiEl = document.getElementById('cajaResumenFiado');
+        if (fiEl) fiEl.textContent = caja.ventas_fiado_fmt || '$0';
+        calcularCuadratura();
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        calcularCuadratura();
+        const modalCajaEl = document.getElementById('modalControlCaja');
+        if (modalCajaEl) {
+            modalCajaEl.addEventListener('show.bs.modal', function() {
+                fetch("{% url 'caja_operacion' %}", {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res && res.ok && res.caja) {
+                        actualizarVistaModalCaja(res.caja);
+                    }
+                })
+                .catch(() => {});
+            });
+        }
+    });
+
+    function confirmarOperacionCaja(accion) {
+        const csrfInput = document.querySelector('#logoutForm input[name="csrfmiddlewaretoken"]');
+        const csrfToken = csrfInput ? csrfInput.value : '';
+        const payload = { accion: accion };
+
+        if (accion === 'apertura') {
+            const montoInput = document.getElementById('montoAperturaInput');
+            const obsInput = document.getElementById('observacionesAperturaInput');
+            payload.monto_apertura = montoInput ? montoInput.value : 50000;
+            payload.observaciones = obsInput ? obsInput.value : '';
+        } else if (accion === 'cierre') {
+            document.querySelectorAll('.cuadratura-input').forEach(input => {
+                const field = input.dataset.field;
+                if (field) {
+                    payload[field] = input.value || 0;
+                }
+            });
+            const obsCierre = document.getElementById('observacionesCierreInput');
+            payload.observaciones = obsCierre ? obsCierre.value : '';
+        }
+
+        const feedbackEl = document.getElementById('cajaFeedbackAlert');
+        fetch("{% url 'caja_operacion' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json().then(data => ({ status: res.status, data })))
+        .then(({ status, data }) => {
+            if (status === 200 && data.ok) {
+                if (data.caja) actualizarVistaModalCaja(data.caja);
+                if (window.mostrarNotificacionPOS) {
+                    window.mostrarNotificacionPOS(data.mensaje, 'success');
+                }
+                if (feedbackEl) {
+                    feedbackEl.className = 'alert alert-success py-2 px-3 small mb-3';
+                    feedbackEl.textContent = data.mensaje;
+                }
+                setTimeout(() => window.location.reload(), 700);
+            } else {
+                const errMsg = data.error || 'No se pudo procesar la operación de caja.';
+                if (feedbackEl) {
+                    feedbackEl.className = 'alert alert-danger py-2 px-3 small mb-3';
+                    feedbackEl.textContent = errMsg;
+                } else if (window.mostrarNotificacionPOS) {
+                    window.mostrarNotificacionPOS(errMsg, 'danger');
+                }
+            }
+        })
+        .catch(() => {
+            if (feedbackEl) {
+                feedbackEl.className = 'alert alert-danger py-2 px-3 small mb-3';
+                feedbackEl.textContent = 'Error de comunicación al registrar la operación de caja.';
+            }
+        });
+    }
+    </script>
+    {% endif %}
+
+    <!-- Contenedor Global de Notificaciones No Bloqueantes (Fase 06 UX) -->
+    <div id="posToastContainer" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1095;"></div>
+
+    <script>
+    window.mostrarNotificacionPOS = function(mensaje, tipo) {
+        const container = document.getElementById('posToastContainer');
+        if (!container) return;
+        const colorClass = tipo === 'danger' || tipo === 'error'
+            ? 'bg-danger text-white border-danger'
+            : (tipo === 'warning' ? 'bg-warning text-dark border-warning' : 'bg-success text-white border-success');
+        const iconClass = tipo === 'danger' || tipo === 'error'
+            ? 'bi-exclamation-octagon-fill'
+            : (tipo === 'warning' ? 'bi-exclamation-triangle-fill' : 'bi-check-circle-fill');
+
+        const toastEl = document.createElement('div');
+        toastEl.className = `toast align-items-center border ${colorClass} show mb-2 shadow-lg`;
+        toastEl.setAttribute('role', 'status');
+        toastEl.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body fw-semibold d-flex align-items-center gap-2">
+                    <i class="bi ${iconClass}"></i>
+                    <span></span>
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        `;
+        toastEl.querySelector('span').textContent = mensaje;
+        container.appendChild(toastEl);
+        setTimeout(() => {
+            toastEl.remove();
+        }, 4200);
+    };
+    </script>
+
+    <!-- Bootstrap Bundle JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- POS Engine JS -->
     <script src="{% static 'js/pos.js' %}"></script>

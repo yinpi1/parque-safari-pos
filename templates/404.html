@@ -27,7 +27,7 @@
         }
         .error-wrapper {
             width: 100%;
-            max-width: 560px;
+            max-width: 580px;
         }
         .error-card {
             background: rgba(17, 24, 39, 0.92);
@@ -69,7 +69,7 @@
             margin-bottom: 0.75rem;
         }
         .error-text {
-            color: #94a3b8;
+            color: #a8b8cf;
             font-size: 0.95rem;
             margin-bottom: 1.25rem;
         }
@@ -91,9 +91,10 @@
             border: none;
             color: #0b0f19;
             font-weight: 700;
-            padding: 0.8rem 1.5rem;
+            padding: 0.8rem 1.4rem;
             border-radius: 12px;
             transition: all 0.2s ease;
+            text-decoration: none;
         }
         .btn-safari:hover {
             color: #0b0f19;
@@ -105,9 +106,10 @@
             border: 1px solid #243048;
             color: #e2e8f0;
             font-weight: 600;
-            padding: 0.8rem 1.5rem;
+            padding: 0.8rem 1.4rem;
             border-radius: 12px;
             transition: all 0.2s ease;
+            text-decoration: none;
         }
         .btn-outline-safari:hover {
             background: #18243e;
@@ -121,22 +123,33 @@
         <div class="error-card">
             <div class="error-icon"><i class="bi bi-compass"></i></div>
             <div class="error-code">404</div>
-            <h1 class="error-title">Página no encontrada</h1>
+            <h1 class="error-title">Página no encontrada — Parque Safari POS</h1>
             <p class="error-text">
-                Parece que te perdiste en la sabana. La página que buscas no existe o fue movida.
+                La ruta solicitada no existe o fue movida dentro del sistema operativo del parque.
             </p>
             {% if request.path %}
                 <div class="error-path"><i class="bi bi-link-45deg"></i> {{ request.path }}</div>
             {% elif ruta %}
                 <div class="error-path"><i class="bi bi-link-45deg"></i> /{{ ruta }}</div>
             {% endif %}
-            <div class="d-flex flex-column flex-sm-row gap-2 justify-content-center">
-                <a href="{% url 'dashboard' %}" class="btn btn-safari">
-                    <i class="bi bi-house-door-fill me-1"></i> Ir al Panel Principal
-                </a>
-                <a href="{% url 'login' %}" class="btn btn-outline-safari">
-                    <i class="bi bi-box-arrow-in-right me-1"></i> Volver al inicio de sesión
-                </a>
+            <div class="d-flex flex-column flex-sm-row flex-wrap gap-2 justify-content-center">
+                {% if autenticado %}
+                    <a href="{% url 'dashboard' %}" class="btn btn-safari">
+                        <i class="bi bi-house-door-fill me-1"></i> Ir al Panel Principal
+                    </a>
+                    {% if 'pos' in permisos_usuario %}
+                    <a href="{% url 'pos' %}" class="btn btn-outline-safari">
+                        <i class="bi bi-calculator me-1"></i> Ir al Punto de Venta
+                    </a>
+                    {% endif %}
+                {% else %}
+                    <a href="{% url 'login' %}" class="btn btn-safari">
+                        <i class="bi bi-box-arrow-in-right me-1"></i> Iniciar Sesión POS
+                    </a>
+                    <a href="{% url 'dashboard' %}" class="btn btn-outline-safari">
+                        <i class="bi bi-house-door me-1"></i> Volver al Inicio
+                    </a>
+                {% endif %}
             </div>
         </div>
     </div>

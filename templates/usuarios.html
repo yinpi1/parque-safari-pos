@@ -5,10 +5,10 @@
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
         <div>
             <h2 class="fw-bold mb-1 text-white">Usuarios y Cargos del Sistema</h2>
-            <p class="text-secondary mb-0">Administración de colaboradores, asignación de roles y terminales POS.</p>
+            <p class="text-secondary mb-0">Administración de cuentas en PostgreSQL, cifrado PBKDF2-SHA256, asignación de roles RBAC y terminales POS.</p>
         </div>
         <div class="d-flex gap-2">
-            <button class="btn btn-warning fw-bold d-flex align-items-center gap-2 shadow" data-bs-toggle="modal" data-bs-target="#modalNuevoUsuario">
+            <button class="btn btn-warning fw-bold d-flex align-items-center gap-2 shadow" onclick="abrirModalUsuarioNuevo()">
                 <i class="bi bi-person-plus-fill fs-5"></i>
                 <span>NUEVO USUARIO</span>
             </button>
@@ -16,10 +16,10 @@
     </div>
 
     <!-- Navegación por Pestañas (Usuarios / Cargos) -->
-    <ul class="nav nav-pills mb-4" id="usuariosTab" role="tablist">
+    <ul class="nav nav-pills mb-4 gap-2" id="usuariosTab" role="tablist">
         <li class="nav-item">
             <button class="nav-link active px-4 py-2 fw-bold" id="usuarios-tab" data-bs-toggle="pill" data-bs-target="#tab-usuarios" type="button">
-                <i class="bi bi-people-fill me-2"></i> Usuarios del Sistema ({{ total_usuarios }})
+                <i class="bi bi-people-fill me-2"></i> Usuarios del Sistema ({{ total_usuarios }} &bull; {{ usuarios_activos }} activos)
             </button>
         </li>
         <li class="nav-item">
@@ -59,29 +59,36 @@
                                     </div>
                                 </div>
                             </td>
-                            <td><span class="font-monospace text-info">@{{ u.usuario }}</span></td>
+                            <td><span class="font-monospace text-info fw-semibold">@{{ u.usuario }}</span></td>
                             <td>
-                                <span class="badge {% if u.cargo == 'Administrador' %}bg-primary{% elif u.cargo == 'Cajero' %}bg-warning text-dark{% elif u.cargo == 'Cocina' %}bg-danger{% elif u.cargo == 'Bar' %}bg-info text-dark{% else %}bg-secondary{% endif %} px-2 py-1">
+                                <span class="badge {% if u.cargo_id == 'admin' %}bg-primary{% elif u.cargo_id == 'cajero' %}bg-warning text-dark{% elif u.cargo_id == 'cocina' %}bg-danger{% elif u.cargo_id == 'bar' %}bg-info text-dark{% else %}bg-secondary{% endif %} px-2 py-1">
                                     {{ u.cargo }}
                                 </span>
                             </td>
                             <td class="text-light small">{{ u.caja_asignada }}</td>
-                            <td class="text-secondary small">{{ u.ultimo_acceso }}</td>
+                            <td class="text-secondary small font-monospace">{{ u.ultimo_acceso }}</td>
                             <td>
                                 {% if u.estado == 'Activo' %}
                                     <span class="badge bg-success">Activo</span>
+                                {% elif u.estado == 'Suspendido' %}
+                                    <span class="badge bg-warning text-dark">Suspendido</span>
                                 {% else %}
                                     <span class="badge bg-danger">Inactivo</span>
                                 {% endif %}
                             </td>
                             <td class="text-end">
                                 <div class="btn-group">
-                                    <button class="btn btn-outline-light btn-sm" title="Editar" data-bs-toggle="modal" data-bs-target="#modalNuevoUsuario">
+                                    <button type="button" class="btn btn-outline-light btn-sm" title="Editar"
+                                            onclick="abrirModalUsuarioEditar({{ u.id }}, '{{ u.nombre|escapejs }}', '{{ u.usuario|escapejs }}', '{{ u.email|escapejs }}', '{{ u.cargo_id|escapejs }}', '{{ u.caja_asignada|escapejs }}', '{{ u.estado|escapejs }}')">
                                         <i class="bi bi-pencil-fill"></i>
                                     </button>
-                                    <button class="btn btn-outline-danger btn-sm" title="Desactivar" onclick="alert('Acción simulada: Estado de usuario modificado.')">
-                                        <i class="bi bi-person-x-fill"></i>
+                                    {% if u.id != usuario_actual.id %}
+                                    <button type="button" class="btn {% if u.estado == 'Activo' %}btn-outline-danger{% else %}btn-outline-success{% endif %} btn-sm"
+                                            title="{% if u.estado == 'Activo' %}Desactivar{% else %}Activar{% endif %}"
+                                            onclick="cambiarEstadoUsuario({{ u.id }}, '{% if u.estado == 'Activo' %}Inactivo{% else %}Activo{% endif %}')">
+                                        <i class="bi {% if u.estado == 'Activo' %}bi-person-x-fill{% else %}bi-person-check-fill{% endif %}"></i>
                                     </button>
+                                    {% endif %}
                                 </div>
                             </td>
                         </tr>
@@ -96,7 +103,7 @@
             <div class="row g-3">
                 {% for c in cargos %}
                 <div class="col-md-6 col-xl-4">
-                    <div class="card bg-dark border-secondary h-100 p-4 rounded-4 position-relative">
+                    <div class="card bg-dark border-secondary h-100 p-4 rounded-4 position-relative d-flex flex-column">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h4 class="fw-bold text-white mb-0">{{ c.nombre }}</h4>
                             <span class="badge bg-warning text-dark font-monospace">{{ c.nivel }}</span>
@@ -109,8 +116,9 @@
                                 <i class="bi bi-person-check-fill text-success me-1"></i>
                                 <strong>{{ c.usuarios_asociados }}</strong> Usuarios activos
                             </span>
-                            <button class="btn btn-outline-warning btn-sm fw-bold" onclick="alert('Permisos de rol editables en siguiente sprint.')">
-                                Configurar Permisos
+                            <button type="button" class="btn btn-outline-warning btn-sm fw-bold"
+                                    onclick="abrirModalCargoEditar('{{ c.id|escapejs }}', '{{ c.nombre|escapejs }}', '{{ c.nivel|escapejs }}', '{{ c.descripcion|escapejs }}')">
+                                <i class="bi bi-sliders me-1"></i> Editar Rol
                             </button>
                         </div>
                     </div>
@@ -122,7 +130,7 @@
 </div>
 
 <!-- ==========================================================================
-     MODAL DE CREACIÓN / EDICIÓN DE USUARIO
+     MODAL 1: CREACIÓN / EDICIÓN DE USUARIO
      ========================================================================== -->
 <div class="modal fade" id="modalNuevoUsuario" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -130,44 +138,60 @@
             <div class="modal-header">
                 <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
                     <i class="bi bi-person-plus-fill text-warning"></i>
-                    <span>Nuevo / Editar Usuario del Sistema</span>
+                    <span id="modalUsuarioTitulo">Nuevo Usuario del Sistema</span>
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
-                <form onsubmit="event.preventDefault(); alert('Usuario simulado registrado exitosamente.'); bootstrap.Modal.getInstance(document.getElementById('modalNuevoUsuario')).hide();">
+                <div id="userFormError" class="alert alert-danger d-none py-2 small"></div>
+                <form onsubmit="guardarUsuarioPos(event)">
+                    <input type="hidden" id="userIdInput" value="">
+                    <input type="hidden" id="userAccionInput" value="crear">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label small text-secondary fw-bold">NOMBRE COMPLETO</label>
-                            <input type="text" class="form-control bg-dark border-secondary text-white" placeholder="Ej: Marcela Gómez" required>
+                            <label class="form-label small text-secondary fw-bold" for="userNombreInput">NOMBRE COMPLETO</label>
+                            <input type="text" id="userNombreInput" class="form-control bg-dark border-secondary text-white" placeholder="Ej: Marcela Gómez" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small text-secondary fw-bold">NOMBRE DE USUARIO</label>
-                            <input type="text" class="form-control bg-dark border-secondary text-white" placeholder="mgomez" required>
+                            <label class="form-label small text-secondary fw-bold" for="userUsernameInput">NOMBRE DE USUARIO</label>
+                            <input type="text" id="userUsernameInput" class="form-control bg-dark border-secondary text-white font-monospace" placeholder="mgomez" required>
                         </div>
 
                         <div class="col-md-6">
-                            <label class="form-label small text-secondary fw-bold">CORREO CORPORATIVO</label>
-                            <input type="email" class="form-control bg-dark border-secondary text-white" placeholder="m.gomez@parquesafari.cl" required>
+                            <label class="form-label small text-secondary fw-bold" for="userEmailInput">CORREO CORPORATIVO</label>
+                            <input type="email" id="userEmailInput" class="form-control bg-dark border-secondary text-white" placeholder="m.gomez@parquesafari.cl" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small text-secondary fw-bold">CARGO ASIGNADO</label>
-                            <select class="form-select bg-dark border-secondary text-white">
+                            <label class="form-label small text-secondary fw-bold" for="userCargoInput">CARGO / ROL RBAC ASIGNADO</label>
+                            <select id="userCargoInput" class="form-select bg-dark border-secondary text-white" required>
+                                {% for c in cargos %}
+                                <option value="{{ c.id }}">{{ c.nombre }} ({{ c.nivel }})</option>
+                                {% empty %}
                                 <option value="cajero">Cajero</option>
-                                <option value="vendedor">Vendedor / Garzón</option>
+                                <option value="garzon">Garzón / Mesero</option>
                                 <option value="cocina">Cocina (KDS)</option>
                                 <option value="bar">Bar (BDS)</option>
-                                <option value="administrador">Administrador</option>
+                                <option value="admin">Administrador</option>
+                                {% endfor %}
                             </select>
                         </div>
 
-                        <div class="col-md-6">
-                            <label class="form-label small text-secondary fw-bold">CONTRASEÑA TEMPORAL</label>
-                            <input type="password" class="form-control bg-dark border-secondary text-white" value="123456" required>
+                        <div class="col-md-4">
+                            <label class="form-label small text-secondary fw-bold" for="userPasswordInput" id="userPasswordLabel">CONTRASEÑA (MÍN. 6 CARACT.)</label>
+                            <input type="password" id="userPasswordInput" class="form-control bg-dark border-secondary text-white" placeholder="Ingrese clave segura">
+                            <small class="text-secondary" id="userPasswordHelp">Se almacena cifrada con PBKDF2-SHA256.</small>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label small text-secondary fw-bold">TERMINAL / CAJA PREFERENTE</label>
-                            <input type="text" class="form-control bg-dark border-secondary text-white" value="Caja 01 - Principal">
+                        <div class="col-md-4">
+                            <label class="form-label small text-secondary fw-bold" for="userCajaInput">TERMINAL / CAJA PREFERENTE</label>
+                            <input type="text" id="userCajaInput" class="form-control bg-dark border-secondary text-white" value="Caja 01 - Principal">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small text-secondary fw-bold" for="userEstadoInput">ESTADO DE CUENTA</label>
+                            <select id="userEstadoInput" class="form-select bg-dark border-secondary text-white">
+                                <option value="Activo">Activo</option>
+                                <option value="Inactivo">Inactivo</option>
+                                <option value="Suspendido">Suspendido</option>
+                            </select>
                         </div>
                     </div>
                     <div class="modal-footer px-0 pb-0 mt-4 border-top border-secondary">
@@ -179,4 +203,192 @@
         </div>
     </div>
 </div>
+
+<!-- ==========================================================================
+     MODAL 2: EDICIÓN DE CARGO / ROL
+     ========================================================================== -->
+<div class="modal fade" id="modalEditarCargo" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-md modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                    <i class="bi bi-shield-lock-fill text-warning"></i>
+                    <span>Configurar Cargo — <span id="cargoModalIdLabel"></span></span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div id="cargoFormError" class="alert alert-danger d-none py-2 small"></div>
+                <form onsubmit="guardarCargoPos(event)">
+                    <input type="hidden" id="cargoIdInput">
+                    <div class="mb-3">
+                        <label class="form-label small text-secondary fw-bold" for="cargoNombreInput">NOMBRE DEL CARGO</label>
+                        <input type="text" id="cargoNombreInput" class="form-control bg-dark border-secondary text-white" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small text-secondary fw-bold" for="cargoNivelInput">NIVEL DE ACCESO</label>
+                        <input type="text" id="cargoNivelInput" class="form-control bg-dark border-secondary text-white" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small text-secondary fw-bold" for="cargoDescInput">DESCRIPCIÓN DE RESPONSABILIDADES Y PERMISOS</label>
+                        <textarea id="cargoDescInput" class="form-control bg-dark border-secondary text-white" rows="3" required></textarea>
+                    </div>
+                    <div class="modal-footer px-0 pb-0 mt-4 border-top border-secondary">
+                        <button type="button" class="btn btn-secondary px-4 fw-bold" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-warning px-4 fw-bold">Guardar Rol</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function getCsrfTokenUsuarios() {
+    const el = document.querySelector('#logoutForm input[name="csrfmiddlewaretoken"]');
+    return el ? el.value : '';
+}
+
+function abrirModalUsuarioNuevo() {
+    const errEl = document.getElementById('userFormError');
+    if (errEl) errEl.classList.add('d-none');
+    document.getElementById('modalUsuarioTitulo').textContent = 'Nuevo Usuario del Sistema';
+    document.getElementById('userIdInput').value = '';
+    document.getElementById('userAccionInput').value = 'crear';
+    document.getElementById('userNombreInput').value = '';
+    document.getElementById('userUsernameInput').value = '';
+    document.getElementById('userEmailInput').value = '';
+    document.getElementById('userCargoInput').value = 'cajero';
+    const pwdInput = document.getElementById('userPasswordInput');
+    pwdInput.value = '';
+    pwdInput.required = true;
+    document.getElementById('userPasswordHelp').textContent = 'Obligatoria al crear cuenta (mín. 6 caracteres).';
+    document.getElementById('userCajaInput').value = 'Caja 01 - Principal';
+    document.getElementById('userEstadoInput').value = 'Activo';
+    new bootstrap.Modal(document.getElementById('modalNuevoUsuario')).show();
+}
+
+function abrirModalUsuarioEditar(id, nombre, usuario, email, cargoId, cajaAsignada, estado) {
+    const errEl = document.getElementById('userFormError');
+    if (errEl) errEl.classList.add('d-none');
+    document.getElementById('modalUsuarioTitulo').textContent = 'Editar Usuario — @' + usuario;
+    document.getElementById('userIdInput').value = id;
+    document.getElementById('userAccionInput').value = 'editar';
+    document.getElementById('userNombreInput').value = nombre;
+    document.getElementById('userUsernameInput').value = usuario;
+    document.getElementById('userEmailInput').value = email;
+    document.getElementById('userCargoInput').value = cargoId;
+    const pwdInput = document.getElementById('userPasswordInput');
+    pwdInput.value = '';
+    pwdInput.required = false;
+    document.getElementById('userPasswordHelp').textContent = 'Deje en blanco para conservar la contraseña actual.';
+    document.getElementById('userCajaInput').value = cajaAsignada;
+    document.getElementById('userEstadoInput').value = estado;
+    new bootstrap.Modal(document.getElementById('modalNuevoUsuario')).show();
+}
+
+function guardarUsuarioPos(event) {
+    event.preventDefault();
+    const errEl = document.getElementById('userFormError');
+    if (errEl) errEl.classList.add('d-none');
+
+    const payload = {
+        accion: document.getElementById('userAccionInput').value || 'crear',
+        id: document.getElementById('userIdInput').value,
+        nombre: document.getElementById('userNombreInput').value,
+        usuario: document.getElementById('userUsernameInput').value,
+        email: document.getElementById('userEmailInput').value,
+        cargo_id: document.getElementById('userCargoInput').value,
+        password: document.getElementById('userPasswordInput').value,
+        caja_asignada: document.getElementById('userCajaInput').value,
+        estado: document.getElementById('userEstadoInput').value,
+    };
+
+    fetch("{% url 'usuario_operacion' %}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfTokenUsuarios(),
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify(payload),
+    })
+    .then(r => r.json().then(d => ({ status: r.status, data: d })))
+    .then(({ status, data }) => {
+        if (status === 200 && data.ok) {
+            if (window.mostrarNotificacionPOS) window.mostrarNotificacionPOS(data.mensaje, 'success');
+            setTimeout(() => window.location.reload(), 500);
+        } else if (errEl) {
+            errEl.textContent = data.error || 'No se pudo guardar el usuario.';
+            errEl.classList.remove('d-none');
+        }
+    });
+}
+
+function cambiarEstadoUsuario(id, nuevoEstado) {
+    fetch("{% url 'usuario_operacion' %}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfTokenUsuarios(),
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify({ accion: 'cambiar_estado', id: id, estado: nuevoEstado }),
+    })
+    .then(r => r.json().then(d => ({ status: r.status, data: d })))
+    .then(({ status, data }) => {
+        if (status === 200 && data.ok) {
+            if (window.mostrarNotificacionPOS) window.mostrarNotificacionPOS(data.mensaje, 'success');
+            setTimeout(() => window.location.reload(), 400);
+        } else if (window.mostrarNotificacionPOS) {
+            window.mostrarNotificacionPOS(data.error || 'No se pudo cambiar el estado del usuario.', 'danger');
+        }
+    });
+}
+
+function abrirModalCargoEditar(id, nombre, nivel, descripcion) {
+    const errEl = document.getElementById('cargoFormError');
+    if (errEl) errEl.classList.add('d-none');
+    document.getElementById('cargoModalIdLabel').textContent = id.toUpperCase();
+    document.getElementById('cargoIdInput').value = id;
+    document.getElementById('cargoNombreInput').value = nombre;
+    document.getElementById('cargoNivelInput').value = nivel;
+    document.getElementById('cargoDescInput').value = descripcion;
+    new bootstrap.Modal(document.getElementById('modalEditarCargo')).show();
+}
+
+function guardarCargoPos(event) {
+    event.preventDefault();
+    const errEl = document.getElementById('cargoFormError');
+    if (errEl) errEl.classList.add('d-none');
+
+    const payload = {
+        accion: 'editar_cargo',
+        id: document.getElementById('cargoIdInput').value,
+        nombre: document.getElementById('cargoNombreInput').value,
+        nivel: document.getElementById('cargoNivelInput').value,
+        descripcion: document.getElementById('cargoDescInput').value,
+    };
+
+    fetch("{% url 'usuario_operacion' %}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfTokenUsuarios(),
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify(payload),
+    })
+    .then(r => r.json().then(d => ({ status: r.status, data: d })))
+    .then(({ status, data }) => {
+        if (status === 200 && data.ok) {
+            if (window.mostrarNotificacionPOS) window.mostrarNotificacionPOS(data.mensaje, 'success');
+            setTimeout(() => window.location.reload(), 500);
+        } else if (errEl) {
+            errEl.textContent = data.error || 'No se pudo actualizar el cargo.';
+            errEl.classList.remove('d-none');
+        }
+    });
+}
+</script>
 {% endblock %}

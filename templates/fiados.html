@@ -5,16 +5,20 @@
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
         <div>
             <h2 class="fw-bold mb-1 text-white">Módulo de Fiados y Consumo Personal</h2>
-            <p class="text-secondary mb-0">Seguimiento de consumos de colaboradores para descuento mensual por nómina.</p>
+            <p class="text-secondary mb-0">Seguimiento de cuentas de crédito, vales de consumo y abonos/descuentos de colaboradores en PostgreSQL.</p>
         </div>
-        <div class="d-flex gap-2">
-            <button class="btn btn-outline-info fw-bold d-flex align-items-center gap-2" onclick="alert('Resumen para descuento en nómina generado en PDF (simulado).')">
-                <i class="bi bi-file-earmark-pdf-fill"></i>
-                <span>Generar Resumen Descuento</span>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'reportes' %}?tipo=fiados&amp;formato=csv" class="btn btn-outline-info fw-bold d-flex align-items-center gap-2">
+                <i class="bi bi-file-earmark-spreadsheet-fill"></i>
+                <span>Exportar Nómina CSV</span>
+            </a>
+            <button class="btn btn-outline-success fw-bold d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#modalNuevaCuentaFiado">
+                <i class="bi bi-person-plus-fill"></i>
+                <span>NUEVA CUENTA COLABORADOR</span>
             </button>
-            <button class="btn btn-warning fw-bold d-flex align-items-center gap-2 shadow" data-bs-toggle="modal" data-bs-target="#modalRegistrarFiado">
+            <button class="btn btn-warning fw-bold d-flex align-items-center gap-2 shadow" onclick="abrirModalCargoFiado()">
                 <i class="bi bi-plus-circle-fill fs-5"></i>
-                <span>REGISTRAR CONSUMO FIADO</span>
+                <span>REGISTRAR VALE FIADO</span>
             </button>
         </div>
     </div>
@@ -25,7 +29,7 @@
             <div class="p-3 bg-dark rounded-3 border border-warning border-opacity-50 d-flex justify-content-between align-items-center">
                 <div>
                     <span class="text-warning small fw-bold">TOTAL CONSUMOS PENDIENTES</span>
-                    <h3 class="fw-bold text-warning font-monospace mb-0">{{ deuda_total }}</h3>
+                    <h3 class="fw-bold text-warning font-monospace mb-0" id="kpiDeudaTotalFiados">{{ deuda_total }}</h3>
                 </div>
                 <i class="bi bi-wallet2 fs-1 text-warning"></i>
             </div>
@@ -33,8 +37,8 @@
         <div class="col-md-4">
             <div class="p-3 bg-dark rounded-3 border border-secondary d-flex justify-content-between align-items-center">
                 <div>
-                    <span class="text-secondary small fw-bold">COLABORADORES ACTIVOS CON SALDO</span>
-                    <h3 class="fw-bold text-white mb-0">{{ total_colaboradores }} Trabajadores</h3>
+                    <span class="text-secondary small fw-bold">COLABORADORES CON SALDO ACTIVO</span>
+                    <h3 class="fw-bold text-white mb-0"><span id="kpiColaboradoresSaldo">{{ total_colaboradores }}</span> / {{ total_cuentas|default:total_colaboradores }} Cuentas</h3>
                 </div>
                 <i class="bi bi-people-fill fs-1 text-info"></i>
             </div>
@@ -43,7 +47,7 @@
             <div class="p-3 bg-dark rounded-3 border border-secondary d-flex justify-content-between align-items-center">
                 <div>
                     <span class="text-secondary small fw-bold">TOTAL TICKETS FIADOS MES</span>
-                    <h3 class="fw-bold text-success font-monospace mb-0">{{ consumos_pendientes }} vales</h3>
+                    <h3 class="fw-bold text-success font-monospace mb-0"><span id="kpiConsumosPendientes">{{ consumos_pendientes }}</span> vales</h3>
                 </div>
                 <i class="bi bi-receipt fs-1 text-success"></i>
             </div>
@@ -51,13 +55,13 @@
     </div>
 
     <!-- Buscador y Filtro -->
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <div class="input-group" style="max-width: 380px;">
             <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-search"></i></span>
-            <input type="text" id="genericTableSearch" class="form-control bg-dark border-secondary text-white" placeholder="Buscar por colaborador o área...">
+            <input type="text" id="genericTableSearch" class="form-control bg-dark border-secondary text-white" placeholder="Buscar por colaborador, RUT o área...">
         </div>
         <div class="d-flex gap-2">
-            <span class="badge bg-secondary p-2">Límite de crédito estándar: $50.000 / mes</span>
+            <span class="badge bg-secondary p-2">Historial contable inmutable protegido en PostgreSQL</span>
         </div>
     </div>
 
@@ -69,10 +73,8 @@
                     <th>COLABORADOR</th>
                     <th>RUT</th>
                     <th>ÁREA / GRUPO</th>
-                    <th>ÚLTIMO CONSUMO</th>
-                    <th>CANT.</th>
-                    <th>VALOR ÚLTIMO</th>
-                    <th>FECHA</th>
+                    <th>ÚLTIMO MOVIMIENTO</th>
+                    <th>CUPO DISPONIBLE</th>
                     <th>TOTAL ACUMULADO</th>
                     <th>ESTADO</th>
                     <th class="text-end">ACCIONES</th>
@@ -83,37 +85,61 @@
                 <tr>
                     <td>
                         <span class="fw-bold text-white d-block">{{ f.trabajador }}</span>
-                        <small class="text-secondary">{{ f.consumos_mes }} consumos este mes</small>
+                        <small class="text-secondary">{{ f.consumos_mes }} consumos este mes &bull; Límite: {{ f.limite_formateado }}</small>
                     </td>
-                    <td class="font-monospace text-secondary">{{ f.rut }}</td>
+                    <td class="font-monospace text-light">{{ f.rut }}</td>
                     <td>
                         <span class="badge bg-dark border border-secondary text-warning">
                             {{ f.cargo_grupo }}
                         </span>
                     </td>
-                    <td class="text-light">{{ f.ultimo_producto }}</td>
-                    <td class="font-monospace text-center fw-bold">{{ f.cantidad }}</td>
-                    <td class="font-monospace text-light">{{ f.valor_formateado }}</td>
-                    <td class="text-secondary small">{{ f.fecha }}</td>
+                    <td>
+                        <span class="text-light d-block">{{ f.ultimo_producto }}</span>
+                        <small class="text-secondary font-monospace">{{ f.valor_formateado }} &bull; {{ f.fecha }}</small>
+                    </td>
+                    <td>
+                        <span class="font-monospace fw-bold text-info">{{ f.cupo_formateado }}</span>
+                    </td>
                     <td>
                         <span class="fw-bold font-monospace text-warning fs-6">{{ f.total_formateado }}</span>
                     </td>
                     <td>
                         {% if f.estado == 'Al día' %}
-                            <span class="badge bg-success bg-opacity-25 text-success">Al día</span>
+                            <span class="badge bg-success bg-opacity-25 text-success border border-success">Al día</span>
+                        {% elif f.estado == 'Bloqueado' %}
+                            <span class="badge bg-secondary text-white">Bloqueado</span>
                         {% else %}
-                            <span class="badge bg-danger bg-opacity-25 text-danger">Por descontar</span>
+                            <span class="badge bg-danger bg-opacity-25 text-danger border border-danger">{{ f.estado }}</span>
                         {% endif %}
                     </td>
                     <td class="text-end">
                         <div class="btn-group">
-                            <button class="btn btn-outline-info btn-sm" title="Consultar Consumos" onclick="alert('Detalle de vales para {{ f.trabajador }}: {{ f.total_formateado }} acumulados.')">
-                                <i class="bi bi-eye-fill"></i> Detalle
+                            <button type="button" class="btn btn-outline-info btn-sm" title="Ver Historial de Movimientos"
+                                    data-fiado-id="{{ f.id }}"
+                                    data-trabajador="{{ f.trabajador }}"
+                                    data-rut="{{ f.rut }}"
+                                    data-saldo="{{ f.total_formateado }}"
+                                    data-cupo="{{ f.cupo_formateado }}"
+                                    onclick="verHistorialFiado({{ f.id }}, '{{ f.trabajador|escapejs }}', '{{ f.rut|escapejs }}', '{{ f.total_formateado|escapejs }}', '{{ f.cupo_formateado|escapejs }}')">
+                                <i class="bi bi-clock-history"></i> Historial
                             </button>
-                            <button class="btn btn-outline-warning btn-sm" title="Nuevo Vale" data-bs-toggle="modal" data-bs-target="#modalRegistrarFiado">
-                                <i class="bi bi-plus"></i> Vale
+                            <button type="button" class="btn btn-outline-warning btn-sm" title="Registrar Vale"
+                                    onclick="abrirModalCargoFiado({{ f.id }})">
+                                <i class="bi bi-plus-lg"></i> Vale
                             </button>
+                            {% if f.total_acumulado > 0 %}
+                            <button type="button" class="btn btn-outline-success btn-sm" title="Registrar Abono / Descuento Nómina"
+                                    onclick="abrirModalAbonoFiado({{ f.id }}, '{{ f.trabajador|escapejs }}', {{ f.total_acumulado }}, '{{ f.total_formateado|escapejs }}')">
+                                <i class="bi bi-cash-coin"></i> Abonar
+                            </button>
+                            {% endif %}
                         </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-secondary py-4">
+                        No existen cuentas de fiado registradas aún. Utilice el botón <strong>Nueva Cuenta Colaborador</strong> para habilitar un trabajador.
                     </td>
                 </tr>
                 {% endfor %}
@@ -122,8 +148,36 @@
     </div>
 </div>
 
+<!-- Datos JSON de movimientos para consulta instantánea en modal -->
+<script id="fiadosDataJson" type="application/json">
+[
+{% for f in fiados %}
+    {
+        "id": {{ f.id }},
+        "trabajador": "{{ f.trabajador|escapejs }}",
+        "rut": "{{ f.rut|escapejs }}",
+        "total_formateado": "{{ f.total_formateado|escapejs }}",
+        "cupo_formateado": "{{ f.cupo_formateado|escapejs }}",
+        "movimientos": [
+            {% for m in f.movimientos %}
+            {
+                "id": {{ m.id }},
+                "detalle": "{{ m.detalle|escapejs }}",
+                "cantidad": {{ m.cantidad }},
+                "monto_fmt": "{{ m.monto_fmt|escapejs }}",
+                "tipo": "{{ m.tipo|escapejs }}",
+                "fecha": "{{ m.fecha|escapejs }}",
+                "positivo": {% if m.monto > 0 %}true{% else %}false{% endif %}
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ]
+    }{% if not forloop.last %},{% endif %}
+{% endfor %}
+]
+</script>
+
 <!-- ==========================================================================
-     MODAL DE REGISTRO DE CONSUMO FIADO
+     MODAL 1: REGISTRAR VALE DE CONSUMO FIADO
      ========================================================================== -->
 <div class="modal fade" id="modalRegistrarFiado" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-md modal-dialog-centered">
@@ -136,46 +190,375 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
-                <form onsubmit="event.preventDefault(); alert('Consumo fiado registrado en cuenta del colaborador (simulado).'); bootstrap.Modal.getInstance(document.getElementById('modalRegistrarFiado')).hide();">
+                <div id="fiadoCargoError" class="alert alert-danger d-none py-2 small"></div>
+                <form id="formCargoFiado" onsubmit="enviarCargoFiado(event)">
                     <div class="mb-3">
-                        <label class="form-label small text-secondary fw-bold">SELECCIONAR COLABORADOR</label>
-                        <select class="form-select bg-dark border-secondary text-white" required>
+                        <label class="form-label small text-secondary fw-bold" for="cargoFiadoColaborador">SELECCIONAR COLABORADOR</label>
+                        <select id="cargoFiadoColaborador" class="form-select bg-dark border-secondary text-white" required>
                             <option value="">Seleccione trabajador de Parque Safari...</option>
                             {% for f in fiados %}
-                            <option value="{{ f.id }}">{{ f.trabajador }} — {{ f.cargo_grupo }} (Deuda: {{ f.total_formateado }})</option>
+                            <option value="{{ f.id }}">{{ f.trabajador }} ({{ f.rut }}) — Disponible: {{ f.cupo_formateado }}</option>
                             {% endfor %}
                         </select>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label small text-secondary fw-bold">PRODUCTO O MENÚ A CONSUMIR</label>
-                        <input type="text" class="form-control bg-dark border-secondary text-white" placeholder="Ej: Hamburguesa Safari + Bebida" required>
+                        <label class="form-label small text-secondary fw-bold" for="cargoFiadoCatalogoSelect">SELECCIONAR DEL CATÁLOGO (OPCIONAL)</label>
+                        <select id="cargoFiadoCatalogoSelect" class="form-select bg-dark border-secondary text-white" onchange="seleccionarProductoCatalogoFiado(this)">
+                            <option value="">-- Ingreso manual o seleccione ítem del catálogo --</option>
+                            {% for p in productos_activos %}
+                            <option value="prod:{{ p.id }}" data-nombre="{{ p.nombre }}" data-precio="{{ p.precio }}">{{ p.nombre }} ({{ p.precio_formateado }})</option>
+                            {% endfor %}
+                            {% for m in menus_activos %}
+                            <option value="menu:{{ m.id }}" data-nombre="{{ m.nombre }}" data-precio="{{ m.precio }}">[COMBO] {{ m.nombre }} ({{ m.precio_formateado }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small text-secondary fw-bold" for="cargoFiadoDetalle">CONCEPTO / PRODUCTO CONSUMIDO</label>
+                        <input type="text" id="cargoFiadoDetalle" class="form-control bg-dark border-secondary text-white" placeholder="Ej: Colación Hamburguesa Safari + Bebida" required>
                     </div>
 
                     <div class="row g-2 mb-3">
                         <div class="col-6">
-                            <label class="form-label small text-secondary fw-bold">CANTIDAD</label>
-                            <input type="number" class="form-control bg-dark border-secondary text-white font-monospace" value="1" min="1" required>
+                            <label class="form-label small text-secondary fw-bold" for="cargoFiadoCantidad">CANTIDAD</label>
+                            <input type="number" id="cargoFiadoCantidad" class="form-control bg-dark border-secondary text-white font-monospace" value="1" min="1" required oninput="recalcularMontoCatalogoFiado()">
                         </div>
                         <div class="col-6">
-                            <label class="form-label small text-secondary fw-bold">MONTO TOTAL (CLP)</label>
-                            <input type="number" class="form-control bg-dark border-secondary text-white font-monospace" placeholder="8790" required>
+                            <label class="form-label small text-secondary fw-bold" for="cargoFiadoMonto">MONTO TOTAL (CLP)</label>
+                            <input type="number" id="cargoFiadoMonto" class="form-control bg-dark border-secondary text-white font-monospace" min="1" placeholder="6990" required>
                         </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label small text-secondary fw-bold">AUTORIZACIÓN / FIRMA DIGITAL</label>
-                        <input type="password" class="form-control bg-dark border-secondary text-white" placeholder="PIN de 4 dígitos del trabajador" value="8821">
-                        <small class="text-secondary">Simulación de validación interna del colaborador.</small>
                     </div>
 
                     <div class="modal-footer px-0 pb-0 mt-4 border-top border-secondary">
                         <button type="button" class="btn btn-secondary px-4 fw-bold" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-warning px-4 fw-bold">Confirmar Vale Fiado</button>
+                        <button type="submit" class="btn btn-warning px-4 fw-bold" id="btnSubmitCargoFiado">Confirmar Vale Fiado</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 </div>
+
+<!-- ==========================================================================
+     MODAL 2: REGISTRAR ABONO / DESCUENTO POR NÓMINA
+     ========================================================================== -->
+<div class="modal fade" id="modalAbonoFiado" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-md modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                    <i class="bi bi-cash-coin text-success"></i>
+                    <span>Registrar Abono / Pago de Deuda</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div id="fiadoAbonoError" class="alert alert-danger d-none py-2 small"></div>
+                <form id="formAbonoFiado" onsubmit="enviarAbonoFiado(event)">
+                    <input type="hidden" id="abonoFiadoId">
+                    <div class="p-3 rounded-3 bg-black bg-opacity-40 border border-secondary mb-3">
+                        <div class="small text-secondary">Colaborador:</div>
+                        <div class="fw-bold text-white fs-5" id="abonoTrabajadorLabel">-</div>
+                        <div class="small text-warning font-monospace mt-1">Deuda actual: <strong id="abonoDeudaActualLabel">$0</strong></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small text-secondary fw-bold" for="abonoMontoInput">MONTO A ABONAR / DESCONTAR (CLP)</label>
+                        <input type="number" id="abonoMontoInput" class="form-control bg-dark border-secondary text-white font-monospace fs-5 fw-bold" min="1" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small text-secondary fw-bold" for="abonoDetalleInput">CONCEPTO DE PAGO</label>
+                        <input type="text" id="abonoDetalleInput" class="form-control bg-dark border-secondary text-white" value="Descuento mensual por planilla / nómina" required>
+                    </div>
+
+                    <div class="modal-footer px-0 pb-0 mt-4 border-top border-secondary">
+                        <button type="button" class="btn btn-secondary px-4 fw-bold" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success px-4 fw-bold">Confirmar Abono</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================================================
+     MODAL 3: NUEVA CUENTA DE COLABORADOR
+     ========================================================================== -->
+<div class="modal fade" id="modalNuevaCuentaFiado" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-md modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                    <i class="bi bi-person-plus-fill text-success"></i>
+                    <span>Habilitar Cuenta de Fiado para Colaborador</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div id="nuevaCuentaFiadoError" class="alert alert-danger d-none py-2 small"></div>
+                <form id="formNuevaCuentaFiado" onsubmit="enviarNuevaCuentaFiado(event)">
+                    <div class="mb-3">
+                        <label class="form-label small text-secondary fw-bold" for="nuevaCuentaRut">RUT DEL TRABAJADOR</label>
+                        <input type="text" id="nuevaCuentaRut" class="form-control bg-dark border-secondary text-white font-monospace" placeholder="Ej: 18.456.789-K" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small text-secondary fw-bold" for="nuevaCuentaNombre">NOMBRE COMPLETO</label>
+                        <input type="text" id="nuevaCuentaNombre" class="form-control bg-dark border-secondary text-white" placeholder="Ej: Diego Contreras" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small text-secondary fw-bold" for="nuevaCuentaCargo">ÁREA / GRUPO OPERATIVO</label>
+                        <input type="text" id="nuevaCuentaCargo" class="form-control bg-dark border-secondary text-white" value="Operaciones Parque" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small text-secondary fw-bold" for="nuevaCuentaLimite">LÍMITE DE CRÉDITO MENSUAL (CLP)</label>
+                        <input type="number" id="nuevaCuentaLimite" class="form-control bg-dark border-secondary text-white font-monospace" value="50000" min="0" required>
+                    </div>
+                    <div class="modal-footer px-0 pb-0 mt-4 border-top border-secondary">
+                        <button type="button" class="btn btn-secondary px-4 fw-bold" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success px-4 fw-bold">Crear Cuenta</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================================================
+     MODAL 4: HISTORIAL DE MOVIMIENTOS DEL COLABORADOR
+     ========================================================================== -->
+<div class="modal fade" id="modalDetalleFiado" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                    <i class="bi bi-clock-history text-info"></i>
+                    <span>Historial de Movimientos — <span id="histFiadoNombre">Colaborador</span></span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="d-flex flex-wrap justify-content-between align-items-center p-3 rounded-3 bg-black bg-opacity-40 border border-secondary mb-3">
+                    <div>
+                        <span class="text-secondary small">RUT:</span> <strong class="font-monospace text-white" id="histFiadoRut">-</strong>
+                    </div>
+                    <div>
+                        <span class="text-secondary small">Cupo Disponible:</span> <strong class="font-monospace text-info" id="histFiadoCupo">$0</strong>
+                    </div>
+                    <div>
+                        <span class="text-secondary small">Deuda Acumulada:</span> <strong class="font-monospace text-warning fs-5" id="histFiadoSaldo">$0</strong>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="pos-table-custom">
+                        <thead>
+                            <tr>
+                                <th>FECHA &amp; HORA</th>
+                                <th>TIPO</th>
+                                <th>DETALLE / CONCEPTO</th>
+                                <th class="text-center">CANT.</th>
+                                <th class="text-end">IMPORTE</th>
+                            </tr>
+                        </thead>
+                        <tbody id="histFiadoBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function getCsrfTokenFiados() {
+    const el = document.querySelector('#logoutForm input[name="csrfmiddlewaretoken"]');
+    return el ? el.value : '';
+}
+
+function abrirModalCargoFiado(fiadoId) {
+    const errEl = document.getElementById('fiadoCargoError');
+    if (errEl) errEl.classList.add('d-none');
+    const sel = document.getElementById('cargoFiadoColaborador');
+    if (sel && fiadoId) sel.value = String(fiadoId);
+    const modal = new bootstrap.Modal(document.getElementById('modalRegistrarFiado'));
+    modal.show();
+}
+
+function seleccionarProductoCatalogoFiado(selectEl) {
+    const opt = selectEl.options[selectEl.selectedIndex];
+    if (!opt || !opt.value) return;
+    const nombre = opt.dataset.nombre || '';
+    const precio = parseInt(opt.dataset.precio || '0', 10) || 0;
+    const cant = parseInt(document.getElementById('cargoFiadoCantidad').value || '1', 10) || 1;
+    document.getElementById('cargoFiadoDetalle').value = nombre;
+    if (precio > 0) {
+        document.getElementById('cargoFiadoMonto').value = precio * cant;
+    }
+}
+
+function recalcularMontoCatalogoFiado() {
+    const selectEl = document.getElementById('cargoFiadoCatalogoSelect');
+    if (selectEl && selectEl.value) {
+        seleccionarProductoCatalogoFiado(selectEl);
+    }
+}
+
+function enviarCargoFiado(event) {
+    event.preventDefault();
+    const errEl = document.getElementById('fiadoCargoError');
+    if (errEl) errEl.classList.add('d-none');
+
+    const catVal = document.getElementById('cargoFiadoCatalogoSelect').value || '';
+    const payload = {
+        accion: 'cargo',
+        fiado_id: document.getElementById('cargoFiadoColaborador').value,
+        detalle: document.getElementById('cargoFiadoDetalle').value,
+        cantidad: document.getElementById('cargoFiadoCantidad').value,
+        monto: document.getElementById('cargoFiadoMonto').value,
+    };
+    if (catVal.startsWith('prod:')) {
+        payload.producto_id = catVal.split(':')[1];
+    } else if (catVal.startsWith('menu:')) {
+        payload.menu_id = catVal.split(':')[1];
+    }
+
+    fetch("{% url 'fiado_operacion' %}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfTokenFiados(),
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify(payload),
+    })
+    .then(r => r.json().then(d => ({ status: r.status, data: d })))
+    .then(({ status, data }) => {
+        if (status === 200 && data.ok) {
+            if (window.mostrarNotificacionPOS) window.mostrarNotificacionPOS(data.mensaje, 'success');
+            setTimeout(() => window.location.reload(), 500);
+        } else if (errEl) {
+            errEl.textContent = data.error || 'No se pudo registrar el vale fiado.';
+            errEl.classList.remove('d-none');
+        }
+    });
+}
+
+function abrirModalAbonoFiado(fiadoId, trabajador, deudaInt, deudaFmt) {
+    const errEl = document.getElementById('fiadoAbonoError');
+    if (errEl) errEl.classList.add('d-none');
+    document.getElementById('abonoFiadoId').value = fiadoId;
+    document.getElementById('abonoTrabajadorLabel').textContent = trabajador;
+    document.getElementById('abonoDeudaActualLabel').textContent = deudaFmt;
+    const montoInput = document.getElementById('abonoMontoInput');
+    montoInput.value = deudaInt;
+    montoInput.max = deudaInt;
+    const modal = new bootstrap.Modal(document.getElementById('modalAbonoFiado'));
+    modal.show();
+}
+
+function enviarAbonoFiado(event) {
+    event.preventDefault();
+    const errEl = document.getElementById('fiadoAbonoError');
+    if (errEl) errEl.classList.add('d-none');
+
+    const payload = {
+        accion: 'abono',
+        fiado_id: document.getElementById('abonoFiadoId').value,
+        monto: document.getElementById('abonoMontoInput').value,
+        detalle: document.getElementById('abonoDetalleInput').value,
+    };
+
+    fetch("{% url 'fiado_operacion' %}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfTokenFiados(),
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify(payload),
+    })
+    .then(r => r.json().then(d => ({ status: r.status, data: d })))
+    .then(({ status, data }) => {
+        if (status === 200 && data.ok) {
+            if (window.mostrarNotificacionPOS) window.mostrarNotificacionPOS(data.mensaje, 'success');
+            setTimeout(() => window.location.reload(), 500);
+        } else if (errEl) {
+            errEl.textContent = data.error || 'No se pudo registrar el abono.';
+            errEl.classList.remove('d-none');
+        }
+    });
+}
+
+function enviarNuevaCuentaFiado(event) {
+    event.preventDefault();
+    const errEl = document.getElementById('nuevaCuentaFiadoError');
+    if (errEl) errEl.classList.add('d-none');
+
+    const payload = {
+        accion: 'crear_cuenta',
+        rut: document.getElementById('nuevaCuentaRut').value,
+        trabajador: document.getElementById('nuevaCuentaNombre').value,
+        cargo_grupo: document.getElementById('nuevaCuentaCargo').value,
+        limite_credito: document.getElementById('nuevaCuentaLimite').value,
+    };
+
+    fetch("{% url 'fiado_operacion' %}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfTokenFiados(),
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify(payload),
+    })
+    .then(r => r.json().then(d => ({ status: r.status, data: d })))
+    .then(({ status, data }) => {
+        if (status === 200 && data.ok) {
+            if (window.mostrarNotificacionPOS) window.mostrarNotificacionPOS(data.mensaje, 'success');
+            setTimeout(() => window.location.reload(), 500);
+        } else if (errEl) {
+            errEl.textContent = data.error || 'No se pudo crear la cuenta de fiado.';
+            errEl.classList.remove('d-none');
+        }
+    });
+}
+
+function verHistorialFiado(fiadoId, trabajador, rut, saldoFmt, cupoFmt) {
+    document.getElementById('histFiadoNombre').textContent = trabajador;
+    document.getElementById('histFiadoRut').textContent = rut;
+    document.getElementById('histFiadoSaldo').textContent = saldoFmt;
+    document.getElementById('histFiadoCupo').textContent = cupoFmt;
+
+    let lista = [];
+    try {
+        const raw = JSON.parse(document.getElementById('fiadosDataJson').textContent || '[]');
+        const found = raw.find(item => item.id === fiadoId);
+        if (found && found.movimientos) lista = found.movimientos;
+    } catch (e) {}
+
+    const tbody = document.getElementById('histFiadoBody');
+    tbody.innerHTML = '';
+    if (!lista.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-secondary py-3">Sin movimientos registrados para este colaborador.</td></tr>';
+    } else {
+        lista.forEach(m => {
+            const tr = document.createElement('tr');
+            const badgeClass = m.positivo ? 'bg-warning text-dark' : 'bg-success text-white';
+            const montoClass = m.positivo ? 'text-warning' : 'text-success';
+            tr.innerHTML = `
+                <td class="font-monospace text-secondary small">${m.fecha}</td>
+                <td><span class="badge ${badgeClass}">${m.tipo}</span></td>
+                <td class="text-white fw-semibold">${m.detalle}</td>
+                <td class="text-center font-monospace">${m.cantidad}</td>
+                <td class="text-end font-monospace fw-bold ${montoClass}">${m.monto_fmt}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+    const modal = new bootstrap.Modal(document.getElementById('modalDetalleFiado'));
+    modal.show();
+}
+</script>
 {% endblock %}

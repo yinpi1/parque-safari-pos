@@ -11,7 +11,7 @@
             </div>
             <div>
                 <h2 class="pos-view-title mb-0">Mapa de Mesas y Salón</h2>
-                <p class="pos-view-subtitle mb-0">Gestión de ocupación, tiempos de servicio y reasignación de comensales</p>
+                <p class="pos-view-subtitle mb-0">Gestión de ocupación en tiempo real, tiempos de servicio y reasignación en PostgreSQL</p>
             </div>
         </div>
         <div class="d-flex gap-2 mt-2 mt-md-0">
@@ -26,7 +26,7 @@
         </div>
     </div>
 
-    <!-- Indicadores de Salón (Diseño limpio y moderno) -->
+    <!-- Indicadores de Salón -->
     <div class="row g-2 mb-3">
         <div class="col-6 col-md-3">
             <div class="p-2 px-3 rounded-3 border border-secondary bg-dark d-flex justify-content-between align-items-center">
@@ -105,10 +105,10 @@
              data-zona="{{ m.zona }}"
              data-mozo="{{ m.mozo }}"
              data-search-text="{{ m.numero }} {{ m.zona }} {{ m.mozo }} {{ m.estado }}"
-             data-bs-toggle="modal" 
+             data-bs-toggle="modal"
              data-bs-target="#modalDetalleMesa"
              onclick="loadMesaModal('{{ m.numero }}', '{{ m.estado }}', '{{ m.zona }}', '{{ m.capacidad }}', '{{ m.inicio }}', '{{ m.tiempo_transcurrido }}', '{{ m.consumo_actual }}', '{{ m.mozo }}', '{{ m.comensales }}')">
-            
+
             <div class="pos-table-header">
                 <span class="pos-table-num text-white">{{ m.numero }}</span>
                 <span class="pos-table-badge {% if m.estado == 'Ocupada' %}badge-ocupada{% else %}badge-disponible{% endif %}">
@@ -152,7 +152,7 @@
     </div>
 </div>
 
-<!-- MODAL DE DETALLE Y REASIGNACIÓN DE MESA -->
+<!-- MODAL DE DETALLE Y OPERACIONES DE MESA -->
 <div class="modal fade" id="modalDetalleMesa" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-md modal-dialog-centered">
         <div class="modal-content">
@@ -164,6 +164,8 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
+                <div id="mesaModalAlert" class="alert d-none py-2 px-3 mb-3 small fw-semibold"></div>
+
                 <div class="d-flex justify-content-between align-items-center p-3 rounded-3 bg-dark border border-secondary mb-3">
                     <div>
                         <div class="text-secondary small fw-bold">ESTADO ACTUAL:</div>
@@ -202,34 +204,32 @@
                     </div>
                 </div>
 
-                <!-- Reasignación de Mesa -->
-                <div class="p-3 rounded-3 bg-dark border border-secondary">
+                <!-- Reasignación de Mesa en PostgreSQL -->
+                <div class="p-3 rounded-3 bg-dark border border-secondary" id="reasignarWrapper">
                     <label class="form-label text-white small fw-bold mb-2 d-flex align-items-center gap-2">
                         <i class="bi bi-arrow-left-right text-warning"></i>
-                        <span>REASIGNAR A OTRA MESA (Simulado):</span>
+                        <span>REASIGNAR A OTRA MESA DISPONIBLE:</span>
                     </label>
                     <div class="input-group">
                         <select class="form-select bg-dark border-secondary text-white" id="selectReasignar">
                             <option value="">Seleccione mesa de destino...</option>
-                            <option value="Mesa 02">Mesa 02 (Disponible - 2 pers)</option>
-                            <option value="Mesa 04">Mesa 04 (Disponible - 6 pers)</option>
-                            <option value="Mesa 05">Mesa 05 (Disponible - 4 pers)</option>
-                            <option value="Mesa 07">Mesa 07 (Disponible - 4 pers)</option>
-                            <option value="Mesa 08">Mesa 08 (Disponible - 2 pers)</option>
+                            {% for ml in mesas_libres %}
+                            <option value="{{ ml.numero }}">{{ ml.numero }} (Disponible - {{ ml.capacidad }} pers.)</option>
+                            {% endfor %}
                         </select>
-                        <button type="button" class="btn btn-warning fw-bold" onclick="alert('Mesa reasignada simuladamente con éxito a la nueva ubicación.'); bootstrap.Modal.getInstance(document.getElementById('modalDetalleMesa')).hide();">
+                        <button type="button" class="btn btn-warning fw-bold" id="btnReasignarMesa" onclick="ejecutarOperacionMesa('reasignar')">
                             Reasignar
                         </button>
                     </div>
                 </div>
             </div>
             <div class="modal-footer d-flex justify-content-between">
-                <button type="button" class="btn btn-outline-danger fw-bold" onclick="alert('Mesa liberada simuladamente.'); bootstrap.Modal.getInstance(document.getElementById('modalDetalleMesa')).hide();">
-                    <i class="bi bi-door-open-fill me-1"></i> Liberar Mesa
+                <button type="button" class="btn btn-outline-danger fw-bold" id="btnLiberarMesa" onclick="ejecutarOperacionMesa('liberar')">
+                    <i class="bi bi-door-open-fill me-1"></i> Cobrar y Liberar Mesa
                 </button>
                 <div class="d-flex gap-2">
                     <button type="button" class="btn btn-secondary fw-bold" data-bs-dismiss="modal">Cerrar</button>
-                    <a href="{% url 'pos' %}" class="btn btn-success fw-bold">
+                    <a href="{% url 'pos' %}" id="btnIrPosMesa" class="btn btn-success fw-bold">
                         <i class="bi bi-plus-lg me-1"></i> Agregar Ítems
                     </a>
                 </div>
@@ -239,7 +239,33 @@
 </div>
 
 <script>
+    let currentModalMesaNum = '';
+    let currentModalMesaEstado = '';
+
+    function getCookieMesa(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
     function loadMesaModal(num, estado, zona, cap, inicio, tiempo, consumo, mozo, comensales) {
+        currentModalMesaNum = num;
+        currentModalMesaEstado = estado;
+        const alertEl = document.getElementById('mesaModalAlert');
+        if (alertEl) {
+            alertEl.className = 'alert d-none py-2 px-3 mb-3 small fw-semibold';
+            alertEl.textContent = '';
+        }
+
         document.getElementById('modalMesaTitle').textContent = `Mesa: ${num} (${zona})`;
         document.getElementById('modalMesaEstado').textContent = estado;
         document.getElementById('modalMesaEstado').className = estado === 'Ocupada' ? 'fs-5 fw-bold text-danger' : 'fs-5 fw-bold text-success';
@@ -248,6 +274,64 @@
         document.getElementById('modalMesaMozo').textContent = mozo;
         document.getElementById('modalMesaInicio').textContent = inicio;
         document.getElementById('modalMesaTiempo').textContent = tiempo;
+
+        const btnLiberar = document.getElementById('btnLiberarMesa');
+        const reasignarWrap = document.getElementById('reasignarWrapper');
+        const btnIrPos = document.getElementById('btnIrPosMesa');
+
+        if (estado === 'Ocupada') {
+            if (btnLiberar) btnLiberar.style.display = 'inline-block';
+            if (reasignarWrap) reasignarWrap.style.display = 'block';
+            if (btnIrPos) btnIrPos.href = "{% url 'pos' %}?mesa=" + encodeURIComponent(num) + "&modo=agregar";
+        } else {
+            if (btnLiberar) btnLiberar.style.display = 'none';
+            if (reasignarWrap) reasignarWrap.style.display = 'none';
+            if (btnIrPos) btnIrPos.href = "{% url 'pos' %}?mesa=" + encodeURIComponent(num) + "&modo=nueva";
+        }
+    }
+
+    async function ejecutarOperacionMesa(accion) {
+        const alertEl = document.getElementById('mesaModalAlert');
+        const selectDest = document.getElementById('selectReasignar');
+        const mesaDestino = selectDest ? selectDest.value : '';
+
+        if (accion === 'reasignar' && !mesaDestino) {
+            if (alertEl) {
+                alertEl.className = 'alert alert-warning py-2 px-3 mb-3 small fw-semibold';
+                alertEl.textContent = 'Seleccione una mesa de destino disponible.';
+            }
+            return;
+        }
+
+        try {
+            const response = await fetch("{% url 'mesa_operacion' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCookieMesa('csrftoken'),
+                },
+                body: JSON.stringify({
+                    accion: accion,
+                    mesa_origen: currentModalMesaNum,
+                    mesa_destino: mesaDestino,
+                }),
+            });
+            const data = await response.json();
+            if (!response.ok || !data.ok) {
+                if (alertEl) {
+                    alertEl.className = 'alert alert-danger py-2 px-3 mb-3 small fw-semibold';
+                    alertEl.textContent = data.error || 'No se pudo completar la operación en la mesa.';
+                }
+                return;
+            }
+            window.location.reload();
+        } catch (err) {
+            if (alertEl) {
+                alertEl.className = 'alert alert-danger py-2 px-3 mb-3 small fw-semibold';
+                alertEl.textContent = 'Error de red al comunicarse con el servidor.';
+            }
+        }
     }
 
     document.addEventListener('DOMContentLoaded', () => {

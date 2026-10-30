@@ -20,7 +20,7 @@
     --safari-bg: #0b0f19;
     
     --safari-text-main: #f8fafc;
-    --safari-text-muted: #94a3b8;
+    --safari-text-muted: #a8b8cf;
     
     --pos-cart-width: 420px;
     --pos-sidebar-width: 250px;
@@ -42,6 +42,18 @@ body {
     height: 100vh;
     display: flex;
     flex-direction: column;
+}
+
+.text-secondary {
+    color: var(--safari-text-muted) !important;
+}
+
+.pos-product-card,
+.pos-cat-btn,
+.pos-qty-btn,
+.filter-pill,
+.pos-nav-accordion-header,
+.pos-table-card {
     user-select: none;
 }
 
@@ -1236,7 +1248,134 @@ body {
 }
 
 /* ==========================================================================
-   TICKETS Y COMANDAS TÉRMICAS
+   MAPA DE MESAS (.pos-table-grid & .pos-table-card)
+   ========================================================================== */
+.pos-table-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(235px, 1fr));
+    gap: 1rem;
+}
+
+.pos-table-card {
+    background: #111a2d;
+    border: 1px solid var(--safari-dark-border);
+    border-radius: 14px;
+    padding: 1rem 1.1rem;
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    position: relative;
+}
+
+.pos-table-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+}
+
+.pos-table-card.disponible {
+    border-left: 4px solid #10b981;
+}
+
+.pos-table-card.disponible:hover {
+    border-color: #10b981;
+}
+
+.pos-table-card.ocupada {
+    border-left: 4px solid #ef4444;
+    background: linear-gradient(180deg, rgba(239, 68, 68, 0.08) 0%, #111a2d 100%);
+}
+
+.pos-table-card.ocupada:hover {
+    border-color: #ef4444;
+}
+
+.pos-table-card.reservada {
+    border-left: 4px solid #f59e0b;
+    background: linear-gradient(180deg, rgba(245, 158, 11, 0.08) 0%, #111a2d 100%);
+}
+
+.pos-table-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.45rem;
+}
+
+.pos-table-num {
+    font-size: 1.15rem;
+    font-weight: 800;
+    letter-spacing: -0.2px;
+}
+
+.pos-table-badge {
+    font-size: 0.7rem;
+    font-weight: 800;
+    padding: 0.2rem 0.55rem;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.badge-disponible {
+    background: rgba(16, 185, 129, 0.18);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.badge-ocupada {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.badge-reservada {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+/* ==========================================================================
+   TABLAS ADMINISTRATIVAS Y DE REPORTES (.pos-table-custom)
+   ========================================================================== */
+.pos-table-custom {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    color: var(--safari-text-main);
+    font-size: 0.88rem;
+}
+
+.pos-table-custom thead th {
+    background: #0d1424;
+    color: var(--safari-text-muted);
+    font-size: 0.74rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    white-space: nowrap;
+}
+
+.pos-table-custom tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+.pos-table-custom tbody tr:hover {
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.pos-table-custom tbody td {
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--safari-dark-border);
+    vertical-align: middle;
+}
+
+.pos-table-custom tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* ==========================================================================
+   TICKETS Y COMANDAS TÉRMICAS (.thermal-*)
    ========================================================================== */
 .pos-ticket-container {
     display: flex;
@@ -1266,10 +1405,41 @@ body {
     margin-bottom: 0.65rem;
 }
 
+.thermal-header h2 {
+    font-size: 1.05rem;
+    font-weight: 900;
+    margin: 0 0 0.2rem 0;
+    color: #000;
+}
+
+.thermal-slip-type {
+    display: inline-block;
+    margin-top: 0.4rem;
+    padding: 0.2rem 0.55rem;
+    background: #1e293b;
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.72rem;
+    border-radius: 3px;
+    letter-spacing: 0.4px;
+}
+
+.thermal-meta {
+    border-bottom: 1px dashed #666;
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.55rem;
+    font-size: 0.78rem;
+}
+
+.thermal-items {
+    margin-bottom: 0.55rem;
+}
+
 .thermal-row {
     display: flex;
     justify-content: space-between;
     margin-bottom: 0.25rem;
+    gap: 0.5rem;
 }
 
 .thermal-total {
@@ -1281,6 +1451,22 @@ body {
     border-bottom: 1px solid #111;
     padding: 0.35rem 0;
     margin: 0.5rem 0;
+}
+
+.thermal-barcode {
+    text-align: center;
+    margin-top: 0.75rem;
+    padding-top: 0.5rem;
+    border-top: 1px dashed #888;
+}
+
+.thermal-barcode-bars {
+    font-family: 'Consolas', monospace;
+    font-size: 1.3rem;
+    letter-spacing: 2px;
+    font-weight: 900;
+    color: #000;
+    line-height: 1;
 }
 
 /* Modales */
@@ -1319,4 +1505,93 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: #3b4d70;
+}
+
+/* ==========================================================================
+   RESPONSIVIDAD MULTI-RESOLUCIÓN (1920x1080, 1366x768, 1024x768, 768x1024)
+   ========================================================================== */
+@media (max-width: 1440px) {
+    :root {
+        --pos-sidebar-width: 225px;
+        --pos-cart-width: 360px;
+    }
+    .pos-main-content {
+        padding: 1rem 1.15rem;
+    }
+    .pos-product-grid {
+        grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+        gap: 0.85rem;
+    }
+}
+
+@media (max-width: 1199px) {
+    :root {
+        --pos-sidebar-width: 205px;
+        --pos-cart-width: 325px;
+    }
+    .pos-product-grid {
+        grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+        gap: 0.75rem;
+    }
+    .pos-kpi-grid {
+        grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+    }
+}
+
+@media (max-width: 991px) {
+    body {
+        height: auto;
+        min-height: 100vh;
+    }
+    .pos-layout {
+        height: auto;
+        min-height: calc(100vh - var(--header-height));
+        overflow: visible;
+    }
+    .pos-sidebar {
+        position: fixed;
+        top: var(--header-height);
+        left: 0;
+        bottom: 0;
+        z-index: 1030;
+        width: 250px;
+        box-shadow: 8px 0 24px rgba(0, 0, 0, 0.65);
+    }
+    .pos-main-content {
+        width: 100%;
+        overflow-y: visible;
+        padding: 1rem;
+    }
+    .pos-workspace {
+        flex-direction: column;
+        height: auto;
+    }
+    .pos-catalog-area {
+        overflow-y: visible;
+        padding-right: 0;
+    }
+    .pos-cart-panel {
+        width: 100%;
+        max-height: none;
+    }
+    .pos-cart-items-wrapper {
+        max-height: 320px;
+    }
+}
+
+@media print {
+    .pos-navbar,
+    .pos-sidebar,
+    .btn,
+    .pos-filter-toolbar {
+        display: none !important;
+    }
+    body,
+    .pos-layout,
+    .pos-main-content {
+        height: auto !important;
+        overflow: visible !important;
+        background: #fff !important;
+        color: #000 !important;
+    }
 }

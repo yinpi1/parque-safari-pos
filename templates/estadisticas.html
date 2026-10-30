@@ -5,11 +5,11 @@
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
         <div>
             <h2 class="fw-bold mb-1 text-white">Estadísticas y Métricas de Operación</h2>
-            <p class="text-secondary mb-0">Rendimiento diario de ventas, demanda por hora y tiempos de preparación &bull; Parque Safari.</p>
+            <p class="text-secondary mb-0">Rendimiento real de ventas, demanda horaria y tiempos de preparación desde PostgreSQL &bull; Parque Safari.</p>
         </div>
         <div class="d-flex gap-2">
             <span class="badge bg-success bg-opacity-25 text-success border border-success p-2 d-flex align-items-center gap-1">
-                <i class="bi bi-broadcast"></i> Datos operativos en tiempo real
+                <i class="bi bi-broadcast"></i> Datos operativos PostgreSQL en vivo
             </span>
         </div>
     </div>
@@ -34,7 +34,7 @@
             <div class="pos-kpi-info">
                 <h3>Ticket Promedio</h3>
                 <div class="pos-kpi-value font-monospace">{{ stats.ticket_promedio }}</div>
-                <div class="pos-kpi-sub">Promedio por comensal</div>
+                <div class="pos-kpi-sub">Promedio por transacción</div>
             </div>
         </div>
 
@@ -67,13 +67,13 @@
             <div class="pos-kpi-info">
                 <h3>Ocupación Salón</h3>
                 <div class="pos-kpi-value text-danger font-monospace">{{ stats.mesas_ocupadas_ratio }}</div>
-                <div class="pos-kpi-sub">{{ stats.pedidos_preparados }} pedidos despachados</div>
+                <div class="pos-kpi-sub">{{ stats.pedidos_preparados }} comandas despachadas</div>
             </div>
         </div>
     </div>
 
     <div class="row g-4 mb-4">
-        <!-- Gráfico 1: Ventas por Hora (Simulado con barras CSS de alta estética) -->
+        <!-- Gráfico 1: Ventas por Hora -->
         <div class="col-xl-8">
             <div class="card bg-dark border-secondary p-4 rounded-4 h-100">
                 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -81,7 +81,7 @@
                         <h5 class="fw-bold text-white mb-1">
                             <i class="bi bi-bar-chart-line-fill text-warning me-2"></i>Curva de Ventas por Hora
                         </h5>
-                        <small class="text-secondary">Pico de demanda registrado entre 12:00 y 14:00 hrs.</small>
+                        <small class="text-secondary">Mayor facturación registrada a las {{ stats.hora_pico }} ({{ stats.monto_pico }}).</small>
                     </div>
                     <span class="badge bg-secondary font-monospace">10:00 - 18:00 hrs</span>
                 </div>
@@ -107,7 +107,7 @@
                 <h5 class="fw-bold text-white mb-3">
                     <i class="bi bi-pie-chart-fill text-info me-2"></i>Ventas por Categoría
                 </h5>
-                <p class="text-secondary small mb-4">Participación sobre el total de facturación:</p>
+                <p class="text-secondary small mb-4">Participación sobre el total de líneas facturadas:</p>
 
                 <div class="d-flex flex-column gap-3">
                     {% for c in stats.ventas_por_categoria %}
@@ -117,11 +117,13 @@
                             <span class="font-monospace text-info small fw-bold">{{ c.total }} ({{ c.porcentaje }}%)</span>
                         </div>
                         <div class="progress" style="height: 10px; background-color: #1e293b;">
-                            <div class="progress-bar {% if forloop.first %}bg-warning{% elif forloop.counter == 2 %}bg-info{% elif forloop.counter == 3 %}bg-danger{% else %}bg-secondary{% endif %}" 
-                                 role="progressbar" 
+                            <div class="progress-bar {% if forloop.first %}bg-warning{% elif forloop.counter == 2 %}bg-info{% elif forloop.counter == 3 %}bg-danger{% else %}bg-secondary{% endif %}"
+                                 role="progressbar"
                                  style="width: {{ c.porcentaje }}%;"></div>
                         </div>
                     </div>
+                    {% empty %}
+                    <div class="text-secondary small">Aún no se registran detalles de venta por categoría.</div>
                     {% endfor %}
                 </div>
             </div>
@@ -131,14 +133,14 @@
     <!-- Ranking de Productos Más Vendidos -->
     <div class="card bg-dark border-secondary p-4 rounded-4">
         <h5 class="fw-bold text-white mb-3">
-            <i class="bi bi-trophy-fill text-warning me-2"></i>Ranking de Productos Más Vendidos Hoy
+            <i class="bi bi-trophy-fill text-warning me-2"></i>Ranking de Productos y Combos Más Vendidos
         </h5>
         <div class="table-responsive">
             <table class="pos-table-custom">
                 <thead>
                     <tr>
                         <th>POSICIÓN</th>
-                        <th>PRODUCTO</th>
+                        <th>PRODUCTO / MENÚ</th>
                         <th>CANTIDAD VENDIDA</th>
                         <th>DEMANDA VISUAL</th>
                         <th>INGRESOS GENERADOS</th>
@@ -156,6 +158,10 @@
                             </div>
                         </td>
                         <td class="font-monospace fw-bold text-success fs-6">{{ prod.ingresos }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-secondary py-4">Sin productos facturados en el período consultado.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

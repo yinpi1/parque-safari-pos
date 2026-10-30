@@ -1,8 +1,12 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="pos-workspace">
-    <!-- ÁREA IZQUIERDA: CATÁLOGO TÁCTIL DE PRODUCTOS -->
+<div class="pos-workspace"
+     id="posWorkspace"
+     data-procesar-url="{% url 'procesar_venta' %}"
+     data-preselected-mesa="{{ mesa_preseleccionada|default:'' }}"
+     data-modo-mesa="{{ modo_mesa_inicial|default:'nueva' }}">
+    <!-- ÁREA IZQUIERDA: CATÁLOGO TÁCTIL DE PRODUCTOS Y MENÚS -->
     <div class="pos-catalog-area">
         <!-- Barra de Categorías (Pills Táctiles) -->
         <div class="pos-category-bar">
@@ -18,7 +22,7 @@
         <div class="d-flex gap-2">
             <div class="pos-search-wrapper flex-grow-1">
                 <i class="bi bi-search pos-search-icon"></i>
-                <input type="text" id="posSearchInput" class="pos-search-input" placeholder="Buscar por nombre de producto (ej: Hamburguesa, Cerveza, Jugo)...">
+                <input type="text" id="posSearchInput" class="pos-search-input" placeholder="Buscar por nombre de producto o combo (ej: Hamburguesa, Pack Explorador, Cerveza)...">
             </div>
             <button class="btn btn-outline-warning d-flex align-items-center gap-2 px-3 fw-bold" onclick="document.getElementById('posSearchInput').value=''; filterProductsByQuery('');">
                 <i class="bi bi-x-circle"></i>
@@ -26,17 +30,19 @@
             </button>
         </div>
 
-        <!-- Grid de Tarjetas Táctiles de Productos -->
+        <!-- Grid de Tarjetas Táctiles de Productos y Menús/Combos -->
         <div class="pos-product-grid" id="posProductGrid">
             {% for p in productos %}
-            <div class="pos-product-card" 
-                 data-id="{{ p.id }}" 
-                 data-nombre="{{ p.nombre }}" 
-                 data-precio="{{ p.precio }}" 
-                 data-cat="{{ p.categoria_id }}" 
-                 data-destino="{{ p.destino }}" 
+            <div class="pos-product-card"
+                 data-item-type="producto"
+                 data-id="{{ p.id }}"
+                 data-codigo="{{ p.codigo }}"
+                 data-nombre="{{ p.nombre }}"
+                 data-precio="{{ p.precio }}"
+                 data-cat="{{ p.categoria_id }}"
+                 data-destino="{{ p.destino }}"
                  data-tipo="{{ p.tipo }}">
-                
+
                 <!-- Badge de Destino/Tipo -->
                 <span class="pos-product-badge {{ p.badge_tipo }}">
                     {% if p.destino == 'Cocina' %}
@@ -62,7 +68,49 @@
                 <!-- Pie con Precio y Botón Agregar -->
                 <div class="pos-product-footer">
                     <span class="pos-product-price">{{ p.precio_formateado }}</span>
-                    <button class="pos-product-add-btn" title="Agregar al pedido">
+                    <button class="pos-product-add-btn" type="button" title="Agregar al pedido">
+                        <i class="bi bi-plus-lg"></i>
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+
+            {% for m in menus %}
+            <div class="pos-product-card pos-menu-card"
+                 data-item-type="menu"
+                 data-id="{{ m.id }}"
+                 data-codigo="{{ m.codigo }}"
+                 data-nombre="{{ m.nombre }}"
+                 data-precio="{{ m.precio }}"
+                 data-cat="combos"
+                 data-destino="{{ m.destino|default:'Cocina + Bar' }}"
+                 data-tipo="{{ m.tipo|default:'Combo Promocional' }}">
+
+                <!-- Badge de Destino / Ahorro del Combo -->
+                <span class="pos-product-badge {{ m.badge_tipo|default:'badge-cocina' }}">
+                    <i class="bi bi-stars me-1"></i> {{ m.destino|default:'Cocina + Bar' }}
+                </span>
+
+                <!-- Icono representativo de Combo -->
+                <div class="pos-product-icon-wrap" style="color: #fbbf24;">
+                    <i class="bi bi-stars"></i>
+                </div>
+
+                <!-- Título, Componentes y Ahorro -->
+                <div>
+                    <h5 class="pos-product-title">{{ m.nombre }}</h5>
+                    <p class="pos-product-desc mb-1">{{ m.productos_incluidos }}</p>
+                    {% if m.ahorro %}
+                    <span class="badge bg-success bg-opacity-25 text-success font-monospace" style="font-size: 0.68rem;">
+                        {{ m.ahorro }}
+                    </span>
+                    {% endif %}
+                </div>
+
+                <!-- Pie con Precio y Botón Agregar -->
+                <div class="pos-product-footer">
+                    <span class="pos-product-price">{{ m.precio_formateado }}</span>
+                    <button class="pos-product-add-btn" type="button" title="Agregar combo al pedido">
                         <i class="bi bi-plus-lg"></i>
                     </button>
                 </div>
@@ -85,11 +133,11 @@
 
         <!-- Selector BAR / MESA -->
         <div class="pos-modalidad-selector">
-            <button class="pos-modalidad-btn active" id="btnModBar">
+            <button class="pos-modalidad-btn active" id="btnModBar" type="button">
                 <i class="bi bi-cup-hot-fill"></i>
                 <span>BAR / RETIRO</span>
             </button>
-            <button class="pos-modalidad-btn" id="btnModMesa">
+            <button class="pos-modalidad-btn" id="btnModMesa" type="button">
                 <i class="bi bi-table"></i>
                 <span>MESA</span>
             </button>
@@ -98,11 +146,12 @@
         <!-- Indicador de Mesa Seleccionada -->
         <div class="pos-mesa-tag" id="mesaSelectorWrapper" style="display: none;">
             <div>
-                <i class="bi bi-geo-alt-fill me-1"></i> 
+                <i class="bi bi-geo-alt-fill me-1"></i>
                 <span>Mesa: </span>
                 <strong id="selectedMesaLabel" class="text-white">Sin seleccionar</strong>
+                <span class="badge bg-info text-dark ms-1 d-none" id="modoMesaBadge">Adición</span>
             </div>
-            <button class="btn btn-primary btn-sm py-0 px-2 fw-bold" data-bs-toggle="modal" data-bs-target="#modalSeleccionMesa">
+            <button class="btn btn-primary btn-sm py-0 px-2 fw-bold" type="button" data-bs-toggle="modal" data-bs-target="#modalSeleccionMesa">
                 Cambiar
             </button>
         </div>
@@ -129,7 +178,7 @@
             </div>
             <div class="pos-summary-row">
                 <span>IVA (19% Incluido):</span>
-                <span class="text-secondary font-monospace">Incluido</span>
+                <span id="cartIva" class="text-secondary font-monospace">$0</span>
             </div>
             <div class="pos-summary-row total-row">
                 <span>TOTAL A PAGAR:</span>
@@ -137,11 +186,11 @@
             </div>
 
             <div class="pos-cart-actions">
-                <button class="pos-btn-clear" id="btnClearCart" title="Vaciar pedido">
+                <button class="pos-btn-clear" id="btnClearCart" type="button" title="Vaciar pedido">
                     <i class="bi bi-trash"></i>
                     <span>Borrar</span>
                 </button>
-                <button class="pos-btn-checkout" id="btnCheckout">
+                <button class="pos-btn-checkout" id="btnCheckout" type="button">
                     <span>COBRAR</span>
                     <i class="bi bi-arrow-right-circle-fill"></i>
                 </button>
@@ -151,7 +200,7 @@
 </div>
 
 <!-- ==========================================================================
-     MODAL 1: SELECCIÓN DE MESA (Disponible / Ocupada / Seleccionada)
+     MODAL 1: SELECCIÓN DE MESA (Solo permite elegir mesas disponibles)
      ========================================================================== -->
 <div class="modal fade" id="modalSeleccionMesa" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -159,23 +208,25 @@
             <div class="modal-header">
                 <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
                     <i class="bi bi-table text-warning"></i>
-                    <span>Seleccionar Mesa para el Pedido</span>
+                    <span>Seleccionar Mesa Disponible para el Pedido</span>
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
                 <p class="text-secondary mb-3">
-                    Haga click en una mesa disponible para asociarla a la venta actual:
+                    Seleccione una mesa libre (<span class="text-success fw-bold">Disponible</span>) para asignarla al nuevo pedido. Las mesas ocupadas están bloqueadas para evitar colisiones:
                 </p>
-                <div class="row g-3">
+                <div class="row g-3" id="modalMesasGrid">
                     {% for m in mesas %}
                     <div class="col-4 col-md-3">
-                        <button type="button" 
-                                class="btn w-100 p-3 rounded-3 mesa-option-btn {% if m.estado == 'Ocupada' %}btn-outline-danger border-2{% else %}btn-outline-success border-2{% endif %}"
+                        <button type="button"
+                                class="btn w-100 p-3 rounded-3 mesa-option-btn {% if m.estado == 'Disponible' %}btn-outline-success border-2{% else %}btn-outline-danger border-2 opacity-50{% endif %}"
                                 data-mesa-num="{{ m.numero }}"
-                                {% if m.estado == 'Ocupada' %}title="Mesa ocupada ({{ m.tiempo_transcurrido }})"{% endif %}>
+                                data-estado="{{ m.estado }}"
+                                data-capacidad="{{ m.capacidad }}"
+                                {% if m.estado != 'Disponible' %}disabled title="Mesa {{ m.estado }} ({{ m.tiempo_transcurrido }}) - No disponible para apertura"{% endif %}>
                             <div class="fw-bold fs-5">{{ m.numero }}</div>
-                            <small class="d-block {% if m.estado == 'Ocupada' %}text-danger fw-bold{% else %}text-success{% endif %}">
+                            <small class="d-block {% if m.estado == 'Disponible' %}text-success{% else %}text-danger fw-bold{% endif %} mesa-option-status">
                                 {{ m.estado }}
                             </small>
                             <small class="text-secondary font-monospace" style="font-size: 0.7rem;">
@@ -207,6 +258,9 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
+                <!-- Alerta de error del servidor (oculta por defecto) -->
+                <div class="alert alert-danger d-none py-2 px-3 mb-3 small fw-semibold" id="posCheckoutError" role="alert"></div>
+
                 <!-- Modalidad y Destino -->
                 <div class="alert alert-secondary py-2 px-3 mb-3 d-flex align-items-center justify-content-between">
                     <div>
@@ -217,7 +271,7 @@
                 </div>
 
                 <!-- Detalle de Productos -->
-                <div class="text-secondary small fw-bold mb-2">PRODUCTOS SELECCIONADOS:</div>
+                <div class="text-secondary small fw-bold mb-2">PRODUCTOS Y MENÚS SELECCIONADOS:</div>
                 <div id="confirmItemsList" class="mb-3 max-h-200 overflow-y-auto pe-1" style="max-height: 180px;">
                     <!-- Rellenado dinámico por JS -->
                 </div>
@@ -228,41 +282,62 @@
                     <div class="text-white small fst-italic" id="confirmNotes">Sin comentarios</div>
                 </div>
 
-                <!-- Método de Pago Visual -->
+                <!-- Método de Pago -->
                 <div class="mb-3">
                     <div class="text-secondary small fw-bold mb-2">MÉTODO DE PAGO:</div>
                     <div class="row g-2">
                         <div class="col-6">
-                            <input type="radio" class="btn-check" name="medioPago" id="pagoEfectivo" checked>
+                            <input type="radio" class="btn-check" name="medioPago" id="pagoEfectivo" value="Efectivo" checked>
                             <label class="btn btn-outline-light w-100 py-2 fw-bold small text-start" for="pagoEfectivo">
                                 <i class="bi bi-cash-stack text-success me-1"></i> Efectivo
                             </label>
                         </div>
                         <div class="col-6">
-                            <input type="radio" class="btn-check" name="medioPago" id="pagoDebito">
+                            <input type="radio" class="btn-check" name="medioPago" id="pagoDebito" value="Tarjeta Débito">
                             <label class="btn btn-outline-light w-100 py-2 fw-bold small text-start" for="pagoDebito">
                                 <i class="bi bi-credit-card-2-front text-info me-1"></i> Tarjeta Débito
                             </label>
                         </div>
                         <div class="col-6">
-                            <input type="radio" class="btn-check" name="medioPago" id="pagoCredito">
+                            <input type="radio" class="btn-check" name="medioPago" id="pagoCredito" value="Tarjeta Crédito">
                             <label class="btn btn-outline-light w-100 py-2 fw-bold small text-start" for="pagoCredito">
                                 <i class="bi bi-credit-card text-warning me-1"></i> Tarjeta Crédito
                             </label>
                         </div>
                         <div class="col-6">
-                            <input type="radio" class="btn-check" name="medioPago" id="pagoFiado">
+                            <input type="radio" class="btn-check" name="medioPago" id="pagoFiado" value="Vale Fiado">
                             <label class="btn btn-outline-light w-100 py-2 fw-bold small text-start" for="pagoFiado">
                                 <i class="bi bi-journal-bookmark text-primary me-1"></i> Fiado Colaborador
                             </label>
                         </div>
                     </div>
+                    <div class="mt-2 d-none" id="fiadoSelectorWrapper">
+                        <label class="form-label small text-secondary fw-bold mb-1" for="selectColaboradorFiado">CUENTA DE COLABORADOR (VALE FIADO):</label>
+                        <select class="form-select form-select-sm bg-dark border-secondary text-white" id="selectColaboradorFiado">
+                            <option value="">-- Seleccione colaborador para imputar cargo --</option>
+                            {% for f in fiados %}
+                            {% if f.estado != 'Bloqueado' %}
+                            <option value="{{ f.rut }}">{{ f.trabajador }} ({{ f.rut }}) — Disp: {{ f.saldo_disponible_formateado }}</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
 
-                <!-- Total -->
-                <div class="d-flex justify-content-between align-items-center p-3 rounded-3 bg-dark border border-success mt-2">
-                    <span class="fw-bold fs-5 text-white">TOTAL A COBRAR:</span>
-                    <span class="fw-bold fs-3 text-success font-monospace" id="confirmTotal">$0</span>
+                <!-- Desglose Neto / IVA / Total -->
+                <div class="p-3 rounded-3 bg-dark border border-success mt-2">
+                    <div class="d-flex justify-content-between small text-secondary mb-1">
+                        <span>Subtotal Neto:</span>
+                        <span class="font-monospace text-light" id="confirmSubtotal">$0</span>
+                    </div>
+                    <div class="d-flex justify-content-between small text-secondary mb-2">
+                        <span>IVA (19%):</span>
+                        <span class="font-monospace text-light" id="confirmIva">$0</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center pt-2 border-top border-secondary">
+                        <span class="fw-bold fs-5 text-white">TOTAL A COBRAR:</span>
+                        <span class="fw-bold fs-3 text-success font-monospace" id="confirmTotal">$0</span>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer bg-dark">
@@ -277,7 +352,7 @@
 </div>
 
 <!-- ==========================================================================
-     MODAL 3: TICKET DE VENTA Y COMANDAS GENERADAS (Demostración visual)
+     MODAL 3: TICKET DE VENTA Y COMANDAS GENERADAS (Persistidos en PostgreSQL)
      ========================================================================== -->
 <div class="modal fade" id="modalTicketEmision" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-xl modal-dialog-centered">
@@ -286,15 +361,15 @@
                 <div>
                     <h5 class="modal-title fw-bold text-success d-flex align-items-center gap-2">
                         <i class="bi bi-check-circle-fill"></i>
-                        <span>¡Venta Confirmada Exitosamente!</span>
+                        <span>¡Operación Registrada en PostgreSQL!</span>
                     </h5>
-                    <small class="text-secondary">Documentos generados y enviados a sus respectivas impresoras de red</small>
+                    <small class="text-secondary">Documentos térmicos emitidos con los precios e importes oficiales del servidor</small>
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4 bg-dark bg-opacity-50">
                 <div class="pos-ticket-container">
-                    
+
                     <!-- 1. TICKET DE VENTA (CLIENTE) -->
                     <div class="thermal-slip">
                         <div class="thermal-header">
@@ -305,27 +380,38 @@
                         </div>
                         <div class="thermal-meta">
                             <div class="d-flex justify-content-between">
-                                <span id="ticketFolio">FOLIO: #8492</span>
-                                <span id="ticketDateTime">26/09/2026 12:55</span>
+                                <span id="ticketFolio">FOLIO: #----</span>
+                                <span id="ticketDateTime">--/--/---- --:--</span>
                             </div>
-                            <div>CAJERO: {{ usuario_actual.nombre }}</div>
+                            <div>CAJERO: <span id="ticketCajero">{{ usuario_actual.nombre }}</span></div>
                             <div>ATENCIÓN: <strong id="ticketMod">BAR</strong></div>
                         </div>
                         <div class="thermal-items" id="ticketItemsContainer">
-                            <!-- Items inyectados -->
+                            <!-- Items inyectados desde respuesta del servidor -->
+                        </div>
+                        <div class="border-top border-dark pt-1 mt-1 small font-monospace">
+                            <div class="d-flex justify-content-between">
+                                <span>SUBTOTAL NETO:</span>
+                                <span id="ticketSubtotal">$0</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>IVA (19%):</span>
+                                <span id="ticketIva">$0</span>
+                            </div>
                         </div>
                         <div class="thermal-total">
                             <span>TOTAL:</span>
                             <span id="ticketTotal">$0</span>
                         </div>
                         <div class="text-center small">
+                            <div>Medio de Pago: <strong id="ticketMetodoPago">EFECTIVO</strong></div>
                             <div>IVA Incluido (19%)</div>
                             <div class="mt-2 text-muted">¡Gracias por visitar Parque Safari!</div>
                             <div>www.parquesafari.cl</div>
                         </div>
                         <div class="thermal-barcode">
                             <div class="thermal-barcode-bars">||| | |||| | |||||| || |</div>
-                            <small class="font-monospace">SAF-2026-POS-OK</small>
+                            <small class="font-monospace" id="ticketBarcodeText">SAF-2026-POS-OK</small>
                         </div>
                     </div>
 
@@ -337,16 +423,16 @@
                         </div>
                         <div class="thermal-meta">
                             <div class="d-flex justify-content-between fw-bold fs-6">
-                                <span>PEDIDO: <span id="cocinaFolio">#8492</span></span>
-                                <span class="badge bg-dark text-white px-2 py-1" id="cocinaDestino">MESA 03</span>
+                                <span>PEDIDO: <span id="cocinaFolio">#----</span></span>
+                                <span class="badge bg-dark text-white px-2 py-1" id="cocinaDestino">BAR</span>
                             </div>
-                            <div>HORA: <span class="font-monospace">12:55</span> &bull; CAJA 01</div>
+                            <div>HORA: <span class="font-monospace" id="cocinaHora">--:--</span> &bull; <span id="cocinaGarzon">{{ usuario_actual.nombre }}</span></div>
                         </div>
                         <div class="thermal-items" id="cocinaItems">
                             <!-- Items de cocina -->
                         </div>
                         <div class="p-2 bg-light border border-dark rounded fw-bold text-danger" id="cocinaNotas">
-                            NOTA: Sin mayonesa
+                            Sin notas
                         </div>
                         <div class="text-center small mt-3 text-muted">
                             [IMPRESA EN: {{ config.impresora_cocina }}]
@@ -361,16 +447,16 @@
                         </div>
                         <div class="thermal-meta">
                             <div class="d-flex justify-content-between fw-bold fs-6">
-                                <span>PEDIDO: <span id="barFolio">#8492</span></span>
+                                <span>PEDIDO: <span id="barFolio">#----</span></span>
                                 <span class="badge bg-dark text-white px-2 py-1" id="barDestino">BAR</span>
                             </div>
-                            <div>HORA: <span class="font-monospace">12:55</span> &bull; CAJA 01</div>
+                            <div>HORA: <span class="font-monospace" id="barHora">--:--</span> &bull; <span id="barGarzon">{{ usuario_actual.nombre }}</span></div>
                         </div>
                         <div class="thermal-items" id="barItems">
                             <!-- Items de bar -->
                         </div>
                         <div class="p-2 bg-light border border-dark rounded fw-bold text-primary" id="barNotas">
-                            NOTA: Jugo con poco hielo
+                            Sin notas
                         </div>
                         <div class="text-center small mt-3 text-muted">
                             [IMPRESA EN: {{ config.impresora_bar }}]
@@ -380,11 +466,16 @@
                 </div>
             </div>
             <div class="modal-footer bg-dark d-flex justify-content-between">
-                <button type="button" class="btn btn-outline-info fw-bold" onclick="window.print()">
-                    <i class="bi bi-printer-fill me-1"></i> Imprimir Demo
-                </button>
                 <div class="d-flex gap-2">
-                    <a href="{% url 'dashboard' %}" class="btn btn-secondary fw-bold px-3">Ir al Dashboard</a>
+                    <button type="button" class="btn btn-outline-info fw-bold" onclick="window.print()">
+                        <i class="bi bi-printer-fill me-1"></i> Imprimir
+                    </button>
+                    <a href="{% url 'ticket' %}" id="btnVerTicketCompleto" class="btn btn-outline-light fw-bold">
+                        <i class="bi bi-receipt me-1"></i> Ver en Módulo Tickets
+                    </a>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'distribucion' %}" class="btn btn-secondary fw-bold px-3">Ver Distribución</a>
                     <button type="button" class="btn btn-warning fw-bold px-4" data-bs-dismiss="modal">
                         <i class="bi bi-plus-circle-fill me-1"></i> Nueva Venta
                     </button>
