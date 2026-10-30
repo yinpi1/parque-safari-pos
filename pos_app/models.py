@@ -10,6 +10,7 @@ Mapea la base de datos relacional PostgreSQL (Neon) y añade el soporte de:
 """
 
 from decimal import Decimal
+import hmac
 
 from django.contrib.auth.hashers import (
     check_password as django_check_password,
@@ -100,9 +101,18 @@ class Usuario(models.Model):
         """Verifica la contraseña contra el hash almacenado usando comparación en tiempo constante."""
         if not isinstance(raw_password, str) or not raw_password:
             return False
-        if not is_password_hashed(self.password):
-            return False
-        return django_check_password(raw_password, self.password)
+        if is_password_hashed(self.password):
+            return django_check_password(raw_password, self.password)
+        # Soporte seguro de transición para contraseñas heredadas no migradas aún:
+        # Se comparan en tiempo constante y se actualizan automáticamente al hash PBKDF2
+        if hmac.compare_digest(self.password, raw_password):
+            try:
+                self.set_password(raw_password)
+                self.save(update_fields=['password'])
+            except Exception:
+                pass
+            return True
+        return False
 
     def save(self, *args, **kwargs):
         if self.usuario:
