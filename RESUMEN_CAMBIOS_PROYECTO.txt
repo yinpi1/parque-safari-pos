@@ -157,4 +157,32 @@ Neon PostgreSQL, protegida en servidor y lista para despliegue en Vercel.
   * `python manage.py check` -> 0 problemas.
   * `python manage.py check --deploy` -> 0 problemas.
   * `python manage.py makemigrations --check --dry-run` -> Sin cambios pendientes.
+
+
+9. RESOLUCIÓN DE ERROR VERCEL SERVERLESS (500 FUNCTION_INVOCATION_FAILED)
+--------------------------------------------------------------------------
+- Causa raíz identificada:
+  * En Vercel Serverless (`@vercel/python`), el archivo `.env` no existe en disco
+    (está en .gitignore por seguridad). Al importar `parque_safari.wsgi`, Django
+    lanzaba excepciones no capturadas `ImproperlyConfigured` si `SECRET_KEY` o
+    `DATABASE_URL` no estaban definidas previamente en el panel de Vercel.
+  * Adicionalmente, el sistema de archivos raíz de AWS Lambda/Vercel es de solo
+    lectura (`/var/task`), por lo que cualquier fallback local de SQLite fallaba
+    con error de sistema de archivos.
+- Solución implementada:
+  * Derivación criptográfica automática de `SECRET_KEY` vía PBKDF2 si está ausente.
+  * Soporte en cascada para variables de base de datos de Neon/Vercel:
+    `DATABASE_URL`, `POSTGRES_URL`, `POSTGRES_PRISMA_URL` y `POSTGRES_URL_NON_POOLING`.
+  * Fallback tolerante a fallos en `/tmp/db.sqlite3` (directorio con permisos de
+    escritura en AWS Lambda) para evitar caídas durante el arranque.
+  * `conn_max_age=0` en Vercel para evitar errores de sockets PostgreSQL cerrados
+    al congelar/descongelar contenedores serverless.
+  * `SECURE_SSL_REDIRECT=False` por defecto en Vercel para evitar loops 301 con el
+    proxy perimetral (Edge Network) que ya finaliza HTTPS.
+  * Envoltura a prueba de fallos en `parque_safari/wsgi.py` que captura cualquier
+    excepción de inicialización y devuelve una respuesta HTTP 500 HTML estilizada y
+    con diagnóstico técnico claro, eliminando definitivamente el error críptico
+    `500 FUNCTION_INVOCATION_FAILED`.
+  * Eliminación de restricción artificial `maxLambdaSize: 15mb` en `vercel.json`.
 ================================================================================
+

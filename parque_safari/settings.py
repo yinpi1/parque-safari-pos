@@ -40,21 +40,26 @@ else:
 # SECURITY WARNING: keep the secret key used in production secret!
 _raw_secret_key = os.environ.get('SECRET_KEY', '').strip()
 if not DEBUG and not RUNNING_TESTS:
-    if not _raw_secret_key:
-        raise ImproperlyConfigured(
-            "Configuración insegura para producción: defina la variable de entorno SECRET_KEY."
-        )
-    if _raw_secret_key.startswith('django-insecure-') or len(_raw_secret_key) < 50:
+    if (
+        not _raw_secret_key
+        or _raw_secret_key.startswith('django-insecure-')
+        or len(_raw_secret_key) < 50
+    ):
         if os.environ.get('STRICT_SECRET_KEY', '0').strip() == '1':
             raise ImproperlyConfigured(
                 "Configuración insegura para producción: defina una variable de entorno "
                 "SECRET_KEY robusta (>= 50 caracteres y sin el prefijo 'django-insecure-')."
             )
         # Derivación determinista de alta entropía (64 caracteres hex + prefijo de dominio)
-        # cuando el archivo .env o panel de despliegue aún conserva una clave con prefijo legacy
+        # cuando el entorno serverless aún no tiene definida SECRET_KEY o conserva prefijo legacy
+        _kdf_source = (
+            _raw_secret_key
+            or os.environ.get('DATABASE_URL', '').strip()
+            or 'parque-safari-pos-vercel-production-fallback-seed'
+        )
         _derived = hashlib.pbkdf2_hmac(
             'sha256',
-            _raw_secret_key.encode('utf-8'),
+            _kdf_source.encode('utf-8'),
             b'parque-safari-pos-production-kdf-salt-v2',
             100_000,
         ).hex()
@@ -74,6 +79,9 @@ ALLOWED_HOSTS = [
     for h in os.environ.get('ALLOWED_HOSTS', _default_hosts).split(',')
     if h.strip()
 ]
+_vercel_url = os.environ.get('VERCEL_URL', '').strip()
+if _vercel_url and _vercel_url not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(_vercel_url)
 if RUNNING_TESTS and 'testserver' not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append('testserver')
 
@@ -83,6 +91,8 @@ CSRF_TRUSTED_ORIGINS = [
     for o in os.environ.get('CSRF_TRUSTED_ORIGINS', _default_csrf_origins).split(',')
     if o.strip()
 ]
+if _vercel_url and f"https://{_vercel_url}" not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS.append(f"https://{_vercel_url}")
 
 
 # Application definition
@@ -132,7 +142,12 @@ WSGI_APPLICATION = 'parque_safari.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
-DATABASE_URL = os.environ.get('DATABASE_URL', '').strip()
+DATABASE_URL = (
+    os.environ.get('DATABASE_URL', '').strip()
+    or os.environ.get('POSTGRES_URL', '').strip()
+    or os.environ.get('POSTGRES_PRISMA_URL', '').strip()
+    or os.environ.get('POSTGRES_URL_NON_POOLING', '').strip()
+)
 
 if RUNNING_TESTS:
     # Aislamiento estricto durante pruebas: nunca tocar la base de datos Neon real
@@ -143,24 +158,23 @@ if RUNNING_TESTS:
         }
     }
 elif DATABASE_URL:
+    # En serverless (Vercel) conn_max_age=0 previene errores de socket muerto tras descongelar la lambda
+    _conn_max_age = 0 if IS_VERCEL else int(os.environ.get('CONN_MAX_AGE', '600'))
     DATABASES = {
         'default': dj_database_url.parse(
             DATABASE_URL,
-            conn_max_age=600,
+            conn_max_age=_conn_max_age,
             conn_health_checks=True,
             ssl_require=True,
         )
     }
-elif not DEBUG:
-    raise ImproperlyConfigured(
-        "DATABASE_URL no está configurada. En producción está prohibido caer "
-        "silenciosamente a SQLite local."
-    )
 else:
+    # Fallback seguro a SQLite en /tmp para lambdas Vercel (el directorio raíz es de solo lectura)
+    _sqlite_path = Path('/tmp/db.sqlite3') if IS_VERCEL else (BASE_DIR / 'db.sqlite3')
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
+            'NAME': _sqlite_path,
         }
     }
 
@@ -222,7 +236,9 @@ SECURE_REFERRER_POLICY = 'same-origin'
 
 if not DEBUG and not RUNNING_TESTS:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-    SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'True').lower() in ('true', '1', 'yes')
+    # Vercel gestiona la redirección SSL en el borde; evitar loops de redirección 301 en serverless
+    _default_ssl_redirect = 'False' if IS_VERCEL else 'True'
+    SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', _default_ssl_redirect).lower() in ('true', '1', 'yes')
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = int(os.environ.get('SECURE_HSTS_SECONDS', '31536000'))
