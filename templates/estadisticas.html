@@ -5,70 +5,12 @@
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
         <div>
             <h2 class="fw-bold mb-1 text-white">Estadísticas y Métricas de Operación</h2>
-            <p class="text-secondary mb-0">Rendimiento real de ventas, demanda horaria y tiempos de preparación desde PostgreSQL &bull; Parque Safari.</p>
+            <p class="text-secondary mb-0">Rendimiento de ventas, demanda horaria y ranking de productos &bull; Parque Safari.</p>
         </div>
         <div class="d-flex gap-2">
             <span class="badge bg-success bg-opacity-25 text-success border border-success p-2 d-flex align-items-center gap-1">
-                <i class="bi bi-broadcast"></i> Datos operativos PostgreSQL en vivo
+                <i class="bi bi-broadcast"></i> Datos en tiempo real
             </span>
-        </div>
-    </div>
-
-    <!-- Indicadores Principales -->
-    <div class="pos-kpi-grid">
-        <div class="pos-kpi-card">
-            <div class="pos-kpi-icon bg-success bg-opacity-25 text-success">
-                <i class="bi bi-cash-coin"></i>
-            </div>
-            <div class="pos-kpi-info">
-                <h3>Total Ventas Hoy</h3>
-                <div class="pos-kpi-value text-success font-monospace">{{ stats.total_ventas_dia }}</div>
-                <div class="pos-kpi-sub">{{ stats.ventas_realizadas }} ventas cerradas</div>
-            </div>
-        </div>
-
-        <div class="pos-kpi-card">
-            <div class="pos-kpi-icon bg-primary bg-opacity-25 text-primary">
-                <i class="bi bi-tag-fill"></i>
-            </div>
-            <div class="pos-kpi-info">
-                <h3>Ticket Promedio</h3>
-                <div class="pos-kpi-value font-monospace">{{ stats.ticket_promedio }}</div>
-                <div class="pos-kpi-sub">Promedio por transacción</div>
-            </div>
-        </div>
-
-        <div class="pos-kpi-card">
-            <div class="pos-kpi-icon bg-warning bg-opacity-25 text-warning">
-                <i class="bi bi-hourglass-split"></i>
-            </div>
-            <div class="pos-kpi-info">
-                <h3>Tiempos Espera Cocina</h3>
-                <div class="pos-kpi-value text-warning font-monospace">{{ stats.tiempo_prom_cocina }}</div>
-                <div class="pos-kpi-sub">Meta interna: &lt; 15 min</div>
-            </div>
-        </div>
-
-        <div class="pos-kpi-card">
-            <div class="pos-kpi-icon bg-info bg-opacity-25 text-info">
-                <i class="bi bi-speedometer"></i>
-            </div>
-            <div class="pos-kpi-info">
-                <h3>Tiempos Espera Bar</h3>
-                <div class="pos-kpi-value text-info font-monospace">{{ stats.tiempo_prom_bar }}</div>
-                <div class="pos-kpi-sub">Meta interna: &lt; 5 min</div>
-            </div>
-        </div>
-
-        <div class="pos-kpi-card">
-            <div class="pos-kpi-icon bg-danger bg-opacity-25 text-danger">
-                <i class="bi bi-table"></i>
-            </div>
-            <div class="pos-kpi-info">
-                <h3>Ocupación Salón</h3>
-                <div class="pos-kpi-value text-danger font-monospace">{{ stats.mesas_ocupadas_ratio }}</div>
-                <div class="pos-kpi-sub">{{ stats.pedidos_preparados }} comandas despachadas</div>
-            </div>
         </div>
     </div>
 

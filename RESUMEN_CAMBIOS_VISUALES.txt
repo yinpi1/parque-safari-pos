@@ -1,0 +1,76 @@
+================================================================================
+PARQUE SAFARI POS — RESUMEN DE CAMBIOS VISUALES Y DE EXPERIENCIA (UX/UI)
+================================================================================
+
+1. BARRA LATERAL Y NAVEGACIÓN (templates/base.html)
+--------------------------------------------------------------------------------
+- Corrección del badge de rol/foco ("FOCO: GESTIÓN TOTAL"):
+  * Se pasó de una fila horizontal rígida a disposición vertical con ajuste
+    de texto (`text-wrap`), evitando que el globo morado se desborde o recorte
+    contra el borde derecho de la sidebar.
+- Arqueo / Cuadratura de Caja:
+  * Se eliminaron referencias a transferencias bancarias ("TARJETAS / TRANSF."
+    reemplazado por "TARJETAS (DÉB. / CRÉD.)").
+
+2. PANEL PRINCIPAL (templates/dashboard.html)
+--------------------------------------------------------------------------------
+- Eliminación de redundancia:
+  * Se quitó el bloque de 8 tarjetas de "Accesos Rápidos a Módulos" (duplicaba
+    exactamente los enlaces de la barra lateral).
+  * Se quitó la grilla completa de las 12 mesas para dejarla en Mapa de Mesas.
+- Nuevo diseño ejecutivo:
+  * Mantiene los 5 KPIs en vivo (Ventas del Día, Ticket Promedio, Cocina KDS,
+    Bar BDS y Ocupación Salón).
+  * Muestra únicamente las mesas actualmente ocupadas (o un aviso limpio si
+    todas están libres) + 3 accesos rápidos complementarios de turno.
+
+3. MAPA DE MESAS (templates/mesas.html)
+--------------------------------------------------------------------------------
+- Vista simplificada por defecto:
+  * Al entrar al módulo, se muestran las tarjetas compactas (número, estado,
+    tiempo y consumo) igual que el resumen de salón, sin saturar la pantalla.
+- Switch "Ver más detalles":
+  * Permite alternar al instante entre la vista simplificada y la vista
+    detallada completa (zona, capacidad, hora de inicio, garzón y comensales).
+- Filtros unificados y modal de cobro mejorado:
+  * Se eliminaron los 4 KPIs repetidos arriba dejando los contadores en los
+    pills de filtro + badge de comensales.
+  * Al cobrar y liberar una mesa ocupada ahora permite elegir método de pago
+    (Efectivo, Débito, Crédito o Vale Fiado con selector de colaborador) y
+    aplicar descuento por Convenio Empresa.
+
+4. PUNTO DE VENTA Y TICKET TÉRMICO (templates/pos.html, static/js/pos.js, ticket.html)
+--------------------------------------------------------------------------------
+- Apartado de Descuento Cliente / Convenio Empresa en el modal de cobro:
+  * Selector de convenio / nombre de empresa + descuento por % o $ CLP fijo
+    + botones rápidos (0%, 5%, 10%, 15%, 20%) y recálculo en vivo.
+- Descuento reflejado en boleta térmica (POS y módulo Tickets):
+  * Muestra "SUBTOTAL ITEMS" y "DCTO. CONVENIO" cuando aplica descuento.
+- Módulo de Tickets (templates/ticket.html):
+  * Se eliminó el recuadro explicativo fijo superior para ir directo al ticket
+    y su impresión.
+
+5. MENÚS & COMBOS (templates/menus.html)
+--------------------------------------------------------------------------------
+- Selector "Tarjetas / Tabla":
+  * Muestra por defecto la vista de tarjetas con el desglose Cocina/Bar y
+    oculta la tabla duplicada salvo que el usuario cambie a modo Tabla.
+
+6. DISTRIBUCIÓN DE VENTAS (templates/distribucion.html)
+--------------------------------------------------------------------------------
+- Diagrama superior compactado a una sola línea informativa para mostrar las
+  ventas enrutadas de inmediato sin scroll innecesario.
+
+7. ESTADÍSTICAS (templates/estadisticas.html)
+--------------------------------------------------------------------------------
+- Se quitaron los 5 KPIs superiores que repetían la información del Panel
+  Principal, dejando el foco directo en curvas horarias, distribución por
+  categoría y ranking de productos.
+
+8. CONFIGURACIÓN Y SUBTÍTULOS DEL SISTEMA (templates/configuracion.html y vistas)
+--------------------------------------------------------------------------------
+- El diagnóstico de base de datos en Configuración se compactó a un badge de
+  estado en el encabezado superior ("BD: CONECTADO").
+- Se limpiaron las menciones técnicas ("persistido en PostgreSQL", etc.) de los
+  subtítulos visibles al usuario en todas las pantallas operativas.
+================================================================================
