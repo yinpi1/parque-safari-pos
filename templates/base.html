@@ -81,11 +81,11 @@
                 
                 <!-- Banner de Rol Autenticado en Servidor (AUD-010) -->
                 <div class="pos-sidebar-quick-role mb-3 p-2 rounded-3" id="sidebarRoleBanner">
-                    <div class="d-flex align-items-center justify-content-between">
+                    <div class="d-flex flex-column align-items-start gap-1">
                         <span class="small fw-bold text-uppercase" id="sidebarRoleTitle" style="font-size: 0.72rem; letter-spacing: 0.5px;">
                             ROL: {{ usuario_actual.cargo.nombre|default:usuario_actual.cargo|upper }}
                         </span>
-                        <span class="badge font-monospace" id="sidebarRoleFocusBadge" style="font-size: 0.65rem; background: {{ rol_ui.badge_bg|default:'rgba(16, 185, 129, 0.2)' }}; color: {{ rol_ui.badge_color|default:'#34d399' }};">
+                        <span class="badge font-monospace text-wrap text-start" id="sidebarRoleFocusBadge" style="font-size: 0.65rem; max-width: 100%; line-height: 1.3; background: {{ rol_ui.badge_bg|default:'rgba(16, 185, 129, 0.2)' }}; color: {{ rol_ui.badge_color|default:'#34d399' }};">
                             FOCO: {{ rol_ui.focus_desc|default:"OPERACIÓN ACTIVA" }}
                         </span>
                     </div>
@@ -340,7 +340,7 @@
                                 </div>
                                 <div class="col-6 col-md-3">
                                     <div class="p-2 rounded-3 bg-black bg-opacity-40 border border-secondary">
-                                        <small class="text-secondary d-block" style="font-size: 0.7rem;">TARJETAS / TRANSF.</small>
+                                        <small class="text-secondary d-block" style="font-size: 0.7rem;">TARJETAS (DÉB. / CRÉD.)</small>
                                         <span class="fw-bold text-info font-monospace" id="cajaResumenTarjetas">{{ caja_estado.ventas_tarjetas_fmt|default:"$0" }}</span>
                                     </div>
                                 </div>

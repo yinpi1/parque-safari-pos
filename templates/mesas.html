@@ -14,7 +14,13 @@
                 <p class="pos-view-subtitle mb-0">Gestión de ocupación en tiempo real, tiempos de servicio y reasignación en PostgreSQL</p>
             </div>
         </div>
-        <div class="d-flex gap-2 mt-2 mt-md-0">
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-2 mt-md-0">
+            <div class="form-check form-switch bg-dark border border-secondary rounded-3 px-3 py-1 d-flex align-items-center gap-2 mb-0" style="min-height: 32px;">
+                <input class="form-check-input m-0" type="checkbox" role="switch" id="toggleVistaMesas" onchange="alternarVistaMesas(this.checked)">
+                <label class="form-check-label small fw-bold text-light mb-0" for="toggleVistaMesas" style="cursor: pointer;">
+                    Ver más detalles
+                </label>
+            </div>
             <button class="btn btn-outline-secondary btn-sm fw-bold d-flex align-items-center gap-2" onclick="location.reload()" title="Refrescar estado de mesas">
                 <i class="bi bi-arrow-clockwise"></i>
                 <span class="d-none d-sm-inline">Refrescar</span>
@@ -26,54 +32,14 @@
         </div>
     </div>
 
-    <!-- Indicadores de Salón -->
-    <div class="row g-2 mb-3">
-        <div class="col-6 col-md-3">
-            <div class="p-2 px-3 rounded-3 border border-secondary bg-dark d-flex justify-content-between align-items-center">
-                <div>
-                    <span class="text-secondary small fw-bold" style="font-size: 0.72rem;">TOTAL MESAS</span>
-                    <h4 class="fw-bold text-white mb-0">{{ total_mesas }}</h4>
-                </div>
-                <i class="bi bi-table fs-3 text-secondary"></i>
-            </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="p-2 px-3 rounded-3 border border-danger border-opacity-40 bg-danger bg-opacity-10 d-flex justify-content-between align-items-center">
-                <div>
-                    <span class="text-danger small fw-bold" style="font-size: 0.72rem;">MESAS OCUPADAS</span>
-                    <h4 class="fw-bold text-danger mb-0">{{ mesas_ocupadas }}</h4>
-                </div>
-                <i class="bi bi-person-fill-lock fs-3 text-danger"></i>
-            </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="p-2 px-3 rounded-3 border border-success border-opacity-40 bg-success bg-opacity-10 d-flex justify-content-between align-items-center">
-                <div>
-                    <span class="text-success small fw-bold" style="font-size: 0.72rem;">MESAS DISPONIBLES</span>
-                    <h4 class="fw-bold text-success mb-0">{{ mesas_disponibles }}</h4>
-                </div>
-                <i class="bi bi-check-circle-fill fs-3 text-success"></i>
-            </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="p-2 px-3 rounded-3 border border-secondary bg-dark d-flex justify-content-between align-items-center">
-                <div>
-                    <span class="text-secondary small fw-bold" style="font-size: 0.72rem;">COMENSALES</span>
-                    <h4 class="fw-bold text-warning mb-0">{{ total_comensales }} pers.</h4>
-                </div>
-                <i class="bi bi-people-fill fs-3 text-warning"></i>
-            </div>
-        </div>
-    </div>
-
     <!-- Barra de Filtros Táctil de Mesas -->
     <div class="pos-filter-toolbar mb-3">
         <div class="row g-2 align-items-center">
-            <div class="col-12 col-md-6 col-lg-7">
-                <div class="pos-filter-pills" id="mesasPills">
+            <div class="col-12 col-md-7 col-lg-8">
+                <div class="pos-filter-pills d-flex flex-wrap align-items-center gap-2" id="mesasPills">
                     <button class="filter-pill active" data-filter-mesa="todas">
                         <span>Todas</span>
-                        <span class="pill-counter">{{ mesas|length }}</span>
+                        <span class="pill-counter">{{ total_mesas }}</span>
                     </button>
                     <button class="filter-pill" data-filter-mesa="Ocupada">
                         <i class="bi bi-circle-fill text-danger me-1" style="font-size: 0.55rem;"></i>
@@ -85,9 +51,12 @@
                         <span>Disponibles</span>
                         <span class="pill-counter">{{ mesas_disponibles }}</span>
                     </button>
+                    <span class="badge bg-dark border border-secondary text-warning font-monospace py-2 px-3 ms-md-2">
+                        <i class="bi bi-people-fill me-1"></i> {{ total_comensales }} comensales
+                    </span>
                 </div>
             </div>
-            <div class="col-12 col-md-6 col-lg-5">
+            <div class="col-12 col-md-5 col-lg-4">
                 <div class="pos-filter-search">
                     <i class="bi bi-search search-icon"></i>
                     <input type="text" id="mesasSearchInput" class="form-control" placeholder="Buscar mesa #, zona o garzón...">
@@ -96,8 +65,35 @@
         </div>
     </div>
 
-    <!-- Mapa / Grid de Tarjetas de Mesas -->
-    <div class="pos-table-grid" id="mesasGrid">
+    <!-- Vista Simplificada por Defecto (Compacta) -->
+    <div class="row g-2" id="mesasSimpleGrid">
+        {% for m in mesas %}
+        <div class="col-6 col-sm-4 col-md-3 col-lg-2 mesa-item-simple"
+             data-estado="{{ m.estado }}"
+             data-search-text="{{ m.numero }} {{ m.zona }} {{ m.mozo }} {{ m.estado }}">
+            <div class="p-3 rounded-3 border h-100 text-center {% if m.estado == 'Ocupada' %}border-danger bg-danger bg-opacity-10 text-light{% elif m.estado == 'Reservada' %}border-warning bg-warning bg-opacity-10 text-light{% else %}border-success bg-success bg-opacity-10 text-light{% endif %}"
+                 style="cursor: pointer; transition: transform 0.15s ease;"
+                 data-bs-toggle="modal"
+                 data-bs-target="#modalDetalleMesa"
+                 onclick="loadMesaModal('{{ m.numero }}', '{{ m.estado }}', '{{ m.zona }}', '{{ m.capacidad }}', '{{ m.inicio }}', '{{ m.tiempo_transcurrido }}', '{{ m.consumo_actual }}', '{{ m.mozo }}', '{{ m.comensales }}')">
+                <div class="fw-bold fs-6 text-white">{{ m.numero }}</div>
+                <small class="d-block {% if m.estado == 'Ocupada' %}text-danger fw-bold{% elif m.estado == 'Reservada' %}text-warning fw-bold{% else %}text-success fw-semibold{% endif %}" style="font-size: 0.78rem;">
+                    {{ m.estado }}
+                </small>
+                <small class="text-secondary font-monospace d-block mt-1" style="font-size: 0.72rem;">
+                    {% if m.estado == 'Ocupada' %}
+                        {{ m.tiempo_transcurrido }} &bull; <span class="text-warning fw-bold">{{ m.consumo_actual }}</span>
+                    {% else %}
+                        Libre
+                    {% endif %}
+                </small>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Vista Detallada (Se muestra al activar el switch "Ver más detalles") -->
+    <div class="pos-table-grid d-none" id="mesasGrid">
         {% for m in mesas %}
         <div class="pos-table-card {% if m.estado == 'Ocupada' %}ocupada{% else %}disponible{% endif %}"
              data-mesa-num="{{ m.numero }}"
@@ -205,12 +201,12 @@
                 </div>
 
                 <!-- Reasignación de Mesa en PostgreSQL -->
-                <div class="p-3 rounded-3 bg-dark border border-secondary" id="reasignarWrapper">
+                <div class="p-3 rounded-3 bg-dark border border-secondary mb-3" id="reasignarWrapper">
                     <label class="form-label text-white small fw-bold mb-2 d-flex align-items-center gap-2">
                         <i class="bi bi-arrow-left-right text-warning"></i>
                         <span>REASIGNAR A OTRA MESA DISPONIBLE:</span>
                     </label>
-                    <div class="input-group">
+                    <div class="input-group input-group-sm">
                         <select class="form-select bg-dark border-secondary text-white" id="selectReasignar">
                             <option value="">Seleccione mesa de destino...</option>
                             {% for ml in mesas_libres %}
@@ -220,6 +216,74 @@
                         <button type="button" class="btn btn-warning fw-bold" id="btnReasignarMesa" onclick="ejecutarOperacionMesa('reasignar')">
                             Reasignar
                         </button>
+                    </div>
+                </div>
+
+                <!-- Opciones de Cobro, Descuento Convenio y Vale Fiado al Cerrar Mesa -->
+                <div class="p-3 rounded-3 bg-dark border border-success border-opacity-75" id="cobroMesaWrapper">
+                    <div class="text-success small fw-bold mb-2 d-flex align-items-center gap-1">
+                        <i class="bi bi-cash-coin"></i>
+                        <span>CIERRE Y COBRO DE CUENTA DE MESA:</span>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label text-secondary small fw-bold mb-1" for="selectMetodoPagoMesa">MÉTODO DE PAGO:</label>
+                        <select class="form-select form-select-sm bg-dark border-secondary text-white fw-semibold" id="selectMetodoPagoMesa" onchange="toggleFiadoMesa()">
+                            <option value="Efectivo">Efectivo</option>
+                            <option value="Tarjeta Débito">Tarjeta Débito</option>
+                            <option value="Tarjeta Crédito">Tarjeta Crédito</option>
+                            <option value="Vale Fiado">Fiado Colaborador (Vale Fiado)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-2 d-none" id="mesaFiadoWrapper">
+                        <label class="form-label text-secondary small fw-bold mb-1" for="selectFiadoMesa">COLABORADOR (VALE FIADO):</label>
+                        <select class="form-select form-select-sm bg-dark border-secondary text-white" id="selectFiadoMesa">
+                            <option value="">-- Seleccione colaborador para imputar cargo --</option>
+                            {% for f in fiados %}
+                            {% if f.estado != 'Bloqueado' %}
+                            <option value="{{ f.rut }}">{{ f.trabajador }} ({{ f.rut }}) — Disp: {{ f.saldo_disponible_formateado }}</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mt-2 pt-2 border-top border-secondary">
+                        <label class="form-label text-warning small fw-bold mb-1 d-flex align-items-center gap-1" for="inputMesaDescuentoValor">
+                            <i class="bi bi-building-check"></i>
+                            <span>DESCUENTO CLIENTE / CONVENIO EMPRESA (OPCIONAL):</span>
+                        </label>
+                        <div class="row g-2 mb-2">
+                            <div class="col-12">
+                                <input type="text"
+                                       class="form-control form-control-sm bg-dark border-secondary text-white"
+                                       id="inputMesaConvenioEmpresa"
+                                       maxlength="80"
+                                       placeholder="Empresa o convenio (ej: Caja Los Andes, Convenio Empresa...)">
+                            </div>
+                        </div>
+                        <div class="row g-2 align-items-center">
+                            <div class="col-5">
+                                <select class="form-select form-select-sm bg-dark border-secondary text-white" id="selectMesaDescuentoTipo" onchange="actualizarPreviewCobroMesa()">
+                                    <option value="porcentaje">% Porcentaje</option>
+                                    <option value="monto">$ Monto CLP</option>
+                                </select>
+                            </div>
+                            <div class="col-7">
+                                <input type="number"
+                                       class="form-control form-control-sm bg-dark border-secondary text-white font-monospace fw-bold"
+                                       id="inputMesaDescuentoValor"
+                                       min="0"
+                                       step="1"
+                                       value="0"
+                                       oninput="actualizarPreviewCobroMesa()"
+                                       placeholder="0">
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top border-secondary small">
+                            <span class="text-secondary fw-bold">TOTAL FINAL A COBRAR:</span>
+                            <span class="fs-5 fw-bold font-monospace text-success" id="mesaTotalFinalCobrar">$0</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -241,6 +305,7 @@
 <script>
     let currentModalMesaNum = '';
     let currentModalMesaEstado = '';
+    let currentModalConsumoInt = 0;
 
     function getCookieMesa(name) {
         let cookieValue = null;
@@ -257,9 +322,44 @@
         return cookieValue;
     }
 
+    function formatCLPMesa(val) {
+        return '$' + Math.max(0, Math.round(Number(val) || 0)).toLocaleString('es-CL');
+    }
+
+    function toggleFiadoMesa() {
+        const selMetodo = document.getElementById('selectMetodoPagoMesa');
+        const fiadoWrap = document.getElementById('mesaFiadoWrapper');
+        if (!selMetodo || !fiadoWrap) return;
+        if (selMetodo.value === 'Vale Fiado') {
+            fiadoWrap.classList.remove('d-none');
+        } else {
+            fiadoWrap.classList.add('d-none');
+        }
+    }
+
+    function actualizarPreviewCobroMesa() {
+        const tipoEl = document.getElementById('selectMesaDescuentoTipo');
+        const valEl = document.getElementById('inputMesaDescuentoValor');
+        const outEl = document.getElementById('mesaTotalFinalCobrar');
+        if (!outEl) return;
+
+        const tipo = tipoEl ? tipoEl.value : 'porcentaje';
+        const rawVal = Math.max(0, Math.round(Number(valEl?.value) || 0));
+        let dcto = 0;
+        if (tipo === 'porcentaje') {
+            const pct = Math.min(100, rawVal);
+            dcto = Math.round((currentModalConsumoInt * pct) / 100);
+        } else {
+            dcto = Math.min(currentModalConsumoInt, rawVal);
+        }
+        const finalMonto = Math.max(0, currentModalConsumoInt - dcto);
+        outEl.textContent = formatCLPMesa(finalMonto);
+    }
+
     function loadMesaModal(num, estado, zona, cap, inicio, tiempo, consumo, mozo, comensales) {
         currentModalMesaNum = num;
         currentModalMesaEstado = estado;
+        currentModalConsumoInt = parseInt(String(consumo || '0').replace(/[^0-9]/g, ''), 10) || 0;
         const alertEl = document.getElementById('mesaModalAlert');
         if (alertEl) {
             alertEl.className = 'alert d-none py-2 px-3 mb-3 small fw-semibold';
@@ -275,17 +375,33 @@
         document.getElementById('modalMesaInicio').textContent = inicio;
         document.getElementById('modalMesaTiempo').textContent = tiempo;
 
+        const selMetodo = document.getElementById('selectMetodoPagoMesa');
+        const selFiado = document.getElementById('selectFiadoMesa');
+        const inpConv = document.getElementById('inputMesaConvenioEmpresa');
+        const selTipo = document.getElementById('selectMesaDescuentoTipo');
+        const inpVal = document.getElementById('inputMesaDescuentoValor');
+        if (selMetodo) selMetodo.value = 'Efectivo';
+        if (selFiado) selFiado.value = '';
+        if (inpConv) inpConv.value = '';
+        if (selTipo) selTipo.value = 'porcentaje';
+        if (inpVal) inpVal.value = '0';
+        toggleFiadoMesa();
+        actualizarPreviewCobroMesa();
+
         const btnLiberar = document.getElementById('btnLiberarMesa');
         const reasignarWrap = document.getElementById('reasignarWrapper');
+        const cobroWrap = document.getElementById('cobroMesaWrapper');
         const btnIrPos = document.getElementById('btnIrPosMesa');
 
         if (estado === 'Ocupada') {
             if (btnLiberar) btnLiberar.style.display = 'inline-block';
             if (reasignarWrap) reasignarWrap.style.display = 'block';
+            if (cobroWrap) cobroWrap.style.display = 'block';
             if (btnIrPos) btnIrPos.href = "{% url 'pos' %}?mesa=" + encodeURIComponent(num) + "&modo=agregar";
         } else {
             if (btnLiberar) btnLiberar.style.display = 'none';
             if (reasignarWrap) reasignarWrap.style.display = 'none';
+            if (cobroWrap) cobroWrap.style.display = 'none';
             if (btnIrPos) btnIrPos.href = "{% url 'pos' %}?mesa=" + encodeURIComponent(num) + "&modo=nueva";
         }
     }
@@ -294,12 +410,32 @@
         const alertEl = document.getElementById('mesaModalAlert');
         const selectDest = document.getElementById('selectReasignar');
         const mesaDestino = selectDest ? selectDest.value : '';
+        const selMetodo = document.getElementById('selectMetodoPagoMesa');
+        const selFiado = document.getElementById('selectFiadoMesa');
+        const inpConv = document.getElementById('inputMesaConvenioEmpresa');
+        const selTipo = document.getElementById('selectMesaDescuentoTipo');
+        const inpVal = document.getElementById('inputMesaDescuentoValor');
+
+        const metodoPago = selMetodo ? selMetodo.value : 'Efectivo';
+        const rutFiado = (metodoPago === 'Vale Fiado' && selFiado) ? selFiado.value.trim() : '';
+        const dctoTipo = selTipo ? selTipo.value : 'porcentaje';
+        const dctoVal = Math.max(0, Math.round(Number(inpVal?.value) || 0));
+        const convenioEmpresa = inpConv ? inpConv.value.trim() : '';
 
         if (accion === 'reasignar' && !mesaDestino) {
             if (alertEl) {
                 alertEl.className = 'alert alert-warning py-2 px-3 mb-3 small fw-semibold';
                 alertEl.textContent = 'Seleccione una mesa de destino disponible.';
             }
+            return;
+        }
+
+        if ((accion === 'liberar' || accion === 'cobrar') && metodoPago === 'Vale Fiado' && !rutFiado) {
+            if (alertEl) {
+                alertEl.className = 'alert alert-warning py-2 px-3 mb-3 small fw-semibold';
+                alertEl.textContent = 'Seleccione un colaborador para imputar el Vale Fiado.';
+            }
+            if (selFiado) selFiado.focus();
             return;
         }
 
@@ -315,6 +451,11 @@
                     accion: accion,
                     mesa_origen: currentModalMesaNum,
                     mesa_destino: mesaDestino,
+                    metodo_pago: metodoPago,
+                    rut_fiado: rutFiado || null,
+                    descuento_tipo: dctoVal > 0 ? dctoTipo : null,
+                    descuento_valor: dctoVal > 0 ? dctoVal : 0,
+                    convenio_empresa: dctoVal > 0 ? (convenioEmpresa || 'Convenio Empresa') : '',
                 }),
             });
             const data = await response.json();
@@ -334,32 +475,44 @@
         }
     }
 
+    function alternarVistaMesas(mostrarDetalles) {
+        const simpleGrid = document.getElementById('mesasSimpleGrid');
+        const detailGrid = document.getElementById('mesasGrid');
+        if (!simpleGrid || !detailGrid) return;
+        if (mostrarDetalles) {
+            simpleGrid.classList.add('d-none');
+            detailGrid.classList.remove('d-none');
+        } else {
+            detailGrid.classList.add('d-none');
+            simpleGrid.classList.remove('d-none');
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         const pills = document.querySelectorAll('#mesasPills .filter-pill');
         const searchInput = document.getElementById('mesasSearchInput');
-        const cards = document.querySelectorAll('#mesasGrid .pos-table-card');
+        const simpleCards = document.querySelectorAll('#mesasSimpleGrid .mesa-item-simple');
+        const detailCards = document.querySelectorAll('#mesasGrid .pos-table-card');
 
         let currentFilter = 'todas';
 
         function applyFilter() {
             const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
-            cards.forEach(card => {
-                const cardEstado = card.dataset.estado;
-                const cardText = (card.dataset.searchText || '').toLowerCase();
+            const filterList = (nodeList, displayVal) => {
+                nodeList.forEach(card => {
+                    const cardEstado = card.dataset.estado;
+                    const cardText = (card.dataset.searchText || '').toLowerCase();
 
-                let matchesStatus = true;
-                if (currentFilter !== 'todas') {
-                    matchesStatus = cardEstado === currentFilter;
-                }
+                    const matchesStatus = currentFilter === 'todas' || cardEstado === currentFilter;
+                    const matchesSearch = query.length === 0 || cardText.includes(query);
 
-                let matchesSearch = true;
-                if (query.length > 0) {
-                    matchesSearch = cardText.includes(query);
-                }
+                    card.style.display = (matchesStatus && matchesSearch) ? displayVal : 'none';
+                });
+            };
 
-                card.style.display = (matchesStatus && matchesSearch) ? 'block' : 'none';
-            });
+            filterList(simpleCards, '');
+            filterList(detailCards, 'block');
         }
 
         pills.forEach(pill => {

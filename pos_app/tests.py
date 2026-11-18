@@ -1962,6 +1962,119 @@ class Fase4a7IntegralTests(TestCase):
         self.assertEqual(r_close.json()["monto_cierre_real"], 50190)
         self.assertEqual(r_close.json()["diferencia"], 0)
 
+    # -------------------------------------------------------------------------
+    # 32. Descuento por Convenio Empresa + Imputación de Fiados en POS y Cierre de Mesa
+    # -------------------------------------------------------------------------
+    def test_32_descuento_convenio_empresa_y_fiados_pos_y_mesa(self):
+        self._login("cmendoza")
+        prod = Producto.objects.get(codigo="COM-001")  # $6.990
+
+        # 1. Crear cuenta de colaborador para probar Vale Fiado
+        r_fiado = self._post_json(
+            "fiado_operacion",
+            {
+                "accion": "crear_cuenta",
+                "rut": "16.543.210-8",
+                "trabajador": "Pedro Soto",
+                "cargo_grupo": "Veterinaria",
+                "limite_credito": 60000,
+            },
+        )
+        self.assertIn(r_fiado.status_code, (200, 201))
+
+        # 2. Venta en POS (BAR) con 10% de descuento por Convenio Empresa
+        # Bruto: 2 * $6.990 = $13.980 -> 10% dcto = $1.398 -> Total final = $12.582
+        r_v1 = self._post_json(
+            "procesar_venta",
+            {
+                "modalidad": "BAR",
+                "metodo_pago": "Tarjeta Débito",
+                "descuento_tipo": "porcentaje",
+                "descuento_valor": 10,
+                "convenio_empresa": "Caja Los Andes",
+                "notas": "Sin mayonesa",
+                "items": [{"tipo": "producto", "id": prod.id, "cantidad": 2}],
+            },
+        )
+        self.assertEqual(r_v1.status_code, 201)
+        v1 = r_v1.json()["venta"]
+        self.assertTrue(v1["tiene_descuento"])
+        self.assertEqual(v1["subtotal_bruto"], 13980)
+        self.assertEqual(v1["descuento_monto"], 1398)
+        self.assertEqual(v1["total"], 12582)
+        self.assertEqual(v1["convenio_empresa"], "Caja Los Andes")
+        # La comanda de cocina mantiene solo la nota de preparación limpia
+        self.assertEqual(v1["comanda_cocina"]["notas"], "Sin mayonesa")
+
+        # Verificar que el ticket HTML muestra el descuento de convenio
+        r_ticket = self.client.get(reverse("ticket"), {"venta_num": v1["venta_num"]})
+        self.assertEqual(r_ticket.status_code, 200)
+        self.assertIn("Caja Los Andes", r_ticket.content.decode("utf-8"))
+
+        # 3. Rechazar porcentaje de descuento inválido (> 100%)
+        r_bad_pct = self._post_json(
+            "procesar_venta",
+            {
+                "modalidad": "BAR",
+                "metodo_pago": "Efectivo",
+                "descuento_tipo": "porcentaje",
+                "descuento_valor": 120,
+                "items": [{"tipo": "producto", "id": prod.id, "cantidad": 1}],
+            },
+        )
+        self.assertEqual(r_bad_pct.status_code, 400)
+
+        # 4. Rechazar Vale Fiado en POS cuando existen cuentas activas pero no se envía colaborador
+        r_no_colab = self._post_json(
+            "procesar_venta",
+            {
+                "modalidad": "BAR",
+                "metodo_pago": "Vale Fiado",
+                "items": [{"tipo": "producto", "id": prod.id, "cantidad": 1}],
+            },
+        )
+        self.assertEqual(r_no_colab.status_code, 400)
+
+        # 5. Abrir Mesa 03 y luego cerrarla/cobrarla con Descuento Fijo ($1.990) + Vale Fiado al colaborador
+        r_mesa = self._post_json(
+            "procesar_venta",
+            {
+                "modalidad": "MESA",
+                "mesa_numero": "Mesa 03",
+                "items": [{"tipo": "producto", "id": prod.id, "cantidad": 1}],
+            },
+        )
+        self.assertEqual(r_mesa.status_code, 201)
+
+        r_cobro_mesa = self._post_json(
+            "mesa_operacion",
+            {
+                "accion": "liberar",
+                "mesa_origen": "Mesa 03",
+                "metodo_pago": "Vale Fiado",
+                "rut_fiado": "16.543.210-8",
+                "descuento_tipo": "monto",
+                "descuento_valor": 1990,
+                "convenio_empresa": "Convenio Corporativo",
+            },
+        )
+        self.assertEqual(r_cobro_mesa.status_code, 200)
+        cobro_data = r_cobro_mesa.json()
+        self.assertTrue(cobro_data["tiene_descuento"])
+        self.assertEqual(cobro_data["consumo_cerrado"], "$5.000")
+
+        cuenta_pedro = FiadoPersonal.objects.get(rut="16.543.210-8")
+        self.assertEqual(cuenta_pedro.total_acumulado, 5000)
+        self.assertEqual(cuenta_pedro.estado, "Por descontar")
+
+        # 6. Verificar que /reportes/ renderiza las filas en HTML con el descuento de convenio
+        r_rep_html = self.client.get(reverse("reportes"), {"tipo": "ventas"})
+        self.assertEqual(r_rep_html.status_code, 200)
+        html_rep = r_rep_html.content.decode("utf-8")
+        self.assertIn(f"#{v1['venta_num']}", html_rep)
+        self.assertIn("-$1.398", html_rep)
+
+
 
 
 

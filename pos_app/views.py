@@ -778,6 +778,7 @@ def mesas_view(request):
     """Módulo visual de mapa y gestión de mesas sincronizado con PostgreSQL."""
     usuario_sesion = get_usuario_actual(request)
     mesas_list = obtener_mesas_salon()
+    catalogo = obtener_catalogo_pos()
     ocupadas = [m for m in mesas_list if m["estado"] == "Ocupada"]
     disponibles = [m for m in mesas_list if m["estado"] == "Disponible"]
     context = {
@@ -785,6 +786,8 @@ def mesas_view(request):
         "usuario_actual": usuario_sesion,
         "mesas": mesas_list,
         "mesas_libres": disponibles,
+        "fiados": catalogo["fiados"],
+        "config": obtener_configuracion_dict(),
         "total_mesas": len(mesas_list),
         "mesas_ocupadas": len(ocupadas),
         "mesas_disponibles": len(disponibles),
@@ -815,6 +818,11 @@ def mesa_operacion_view(request):
             mesa_origen_num=payload.get("mesa_origen"),
             mesa_destino_num=payload.get("mesa_destino"),
             metodo_pago=payload.get("metodo_pago") or "Efectivo",
+            rut_fiado=payload.get("rut_fiado"),
+            fiado_id=payload.get("fiado_id"),
+            descuento_tipo=payload.get("descuento_tipo"),
+            descuento_valor=payload.get("descuento_valor"),
+            convenio_empresa=payload.get("convenio_empresa"),
             ip_origen=_get_client_ip(request),
         )
         return JsonResponse({"ok": True, **resultado})
@@ -1064,9 +1072,10 @@ def reportes_view(request):
         writer = csv.writer(response, delimiter=";")
 
         if reporte["tipo_reporte"] == "ventas":
-            writer.writerow(["Fecha y Hora", "N Venta", "Operador", "Atencion", "Metodo Pago", "Subtotal Neto", "IVA 19%", "Total", "Estado"])
+            writer.writerow(["Fecha y Hora", "N Venta", "Operador", "Atencion", "Metodo Pago", "Convenio / Descuento", "Subtotal Neto", "IVA 19%", "Total", "Estado"])
             for r in reporte["ventas_rows"]:
-                writer.writerow([r["fecha_hora"], f"#{r['venta_num']}", r["cajero"], r["atencion"], r["metodo_pago"], r["subtotal_int"], r["iva_int"], r["total_int"], r["estado"]])
+                dcto_col = f"{r.get('convenio') or 'Descuento'} (-{r.get('descuento_int', 0)})" if r.get("tiene_descuento") else "-"
+                writer.writerow([r["fecha_hora"], f"#{r['venta_num']}", r["cajero"], r["atencion"], r["metodo_pago"], dcto_col, r["subtotal_int"], r["iva_int"], r["total_int"], r["estado"]])
         elif reporte["tipo_reporte"] == "productos":
             writer.writerow(["Producto / Menu", "Estacion Destino", "Unidades Vendidas", "Total Facturado CLP"])
             for r in reporte["productos_rows"]:
@@ -1091,6 +1100,7 @@ def reportes_view(request):
         "usuario_actual": usuario_sesion,
         "stats": stats,
         "reporte": reporte,
+        "config": obtener_configuracion_dict(),
     }
     return render(request, "reportes.html", context)
 

@@ -16,17 +16,35 @@ import os
 import sys
 
 from django.core.exceptions import ImproperlyConfigured
-from dotenv import load_dotenv
-import dj_database_url
+
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    def load_dotenv(*args, **kwargs):
+        return False
+
+try:
+    import dj_database_url
+except ImportError:
+    dj_database_url = None
+
+try:
+    import whitenoise  # noqa: F401
+    HAS_WHITENOISE = True
+except ImportError:
+    HAS_WHITENOISE = False
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Cargar variables de entorno desde .env si existe (sin sobrescribir variables del sistema)
+# Cargar variables de entorno desde .env o env si existen (sin sobrescribir variables del sistema)
 load_dotenv(BASE_DIR / '.env', override=False)
+if (BASE_DIR / 'env').is_file():
+    load_dotenv(BASE_DIR / 'env', override=False)
 
-# Detectar ejecución de suite de pruebas automatizadas o entorno serverless Vercel
+# Detectar ejecución de suite de pruebas automatizadas, servidor local o entorno serverless Vercel
 RUNNING_TESTS = 'test' in sys.argv or os.environ.get('USE_TEST_SQLITE') == '1'
+RUNNING_DEVSERVER = 'runserver' in sys.argv
 IS_VERCEL = bool(os.environ.get('VERCEL') or os.environ.get('VERCEL_ENV'))
 IS_DEPLOY_CHECK = 'check' in sys.argv and '--deploy' in sys.argv
 
@@ -85,7 +103,10 @@ if _vercel_url and _vercel_url not in ALLOWED_HOSTS:
 if RUNNING_TESTS and 'testserver' not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append('testserver')
 
-_default_csrf_origins = 'https://parque-safari-pos.vercel.app,https://*.vercel.app'
+_default_csrf_origins = (
+    'https://parque-safari-pos.vercel.app,https://*.vercel.app,'
+    'http://localhost:8000,http://127.0.0.1:8000,http://localhost:8080,http://127.0.0.1:8080'
+)
 CSRF_TRUSTED_ORIGINS = [
     o.strip()
     for o in os.environ.get('CSRF_TRUSTED_ORIGINS', _default_csrf_origins).split(',')
@@ -109,7 +130,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
+    *(['whitenoise.middleware.WhiteNoiseMiddleware'] if HAS_WHITENOISE else []),
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -158,16 +179,18 @@ if RUNNING_TESTS:
         }
     }
 elif DATABASE_URL:
-    # En serverless (Vercel) conn_max_age=0 previene errores de socket muerto tras descongelar la lambda
-    _conn_max_age = 0 if IS_VERCEL else int(os.environ.get('CONN_MAX_AGE', '600'))
-    DATABASES = {
-        'default': dj_database_url.parse(
-            DATABASE_URL,
-            conn_max_age=_conn_max_age,
-            conn_health_checks=True,
-            ssl_require=True,
-        )
-    }
+    # En serverless (Vercel) o con PgBouncer pooler de Neon, conn_max_age=0 y
+    # DISABLE_SERVER_SIDE_CURSORS=True previenen cierres abruptos de socket en el pooler
+    _is_pooler = '-pooler' in DATABASE_URL or 'pgbouncer' in DATABASE_URL.lower()
+    _conn_max_age = 0 if (IS_VERCEL or _is_pooler) else int(os.environ.get('CONN_MAX_AGE', '60'))
+    _db_cfg = dj_database_url.parse(
+        DATABASE_URL,
+        conn_max_age=_conn_max_age,
+        conn_health_checks=True,
+        ssl_require=True,
+    )
+    _db_cfg['DISABLE_SERVER_SIDE_CURSORS'] = True
+    DATABASES = {'default': _db_cfg}
 else:
     # Fallback seguro a SQLite en /tmp para lambdas Vercel (el directorio raíz es de solo lectura)
     _sqlite_path = Path('/tmp/db.sqlite3') if IS_VERCEL else (BASE_DIR / 'db.sqlite3')
@@ -218,8 +241,9 @@ STATICFILES_DIRS = [
     BASE_DIR / 'static',
 ]
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
-WHITENOISE_USE_FINDERS = True
+if HAS_WHITENOISE:
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+    WHITENOISE_USE_FINDERS = True
 
 
 # Seguridad de Sesiones, Cookies y Cabeceras HTTP (AUD-006, AUD-007)
@@ -234,7 +258,7 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 SECURE_REFERRER_POLICY = 'same-origin'
 
-if not DEBUG and not RUNNING_TESTS:
+if not DEBUG and not RUNNING_TESTS and not RUNNING_DEVSERVER:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     # Vercel gestiona la redirección SSL en el borde; evitar loops de redirección 301 en serverless
     _default_ssl_redirect = 'False' if IS_VERCEL else 'True'
@@ -244,6 +268,11 @@ if not DEBUG and not RUNNING_TESTS:
     SECURE_HSTS_SECONDS = int(os.environ.get('SECURE_HSTS_SECONDS', '31536000'))
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
+else:
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+    SECURE_HSTS_SECONDS = 0
 
 
 # Email (corrige mail.E001 en producción)

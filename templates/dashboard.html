@@ -89,154 +89,73 @@
         </div>
     </div>
 
-    <!-- Sección de Accesos Rápidos Organizados con Menú Colapsable -->
-    <div class="card pos-card p-3 mb-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <div class="d-flex align-items-center gap-2">
-                <i class="bi bi-grid-fill text-warning"></i>
-                <h5 class="fw-bold text-white mb-0">Accesos Rápidos a Módulos</h5>
+    <!-- Resumen Operativo Sin Redundancias -->
+    <div class="row g-3">
+        <!-- Mesas Ocupadas en Este Momento -->
+        <div class="col-lg-8">
+            <div class="card pos-card p-3 rounded-4 h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="fw-bold text-white mb-0 d-flex align-items-center gap-2">
+                        <i class="bi bi-table text-info"></i>
+                        <span>Mesas Activas en Salón ({{ total_mesas_ocupadas }} ocupadas de {{ total_mesas }})</span>
+                    </h6>
+                    {% if 'mesas' in permisos_usuario %}
+                    <a href="{% url 'mesas' %}" class="btn btn-sm btn-outline-info fw-semibold">Abrir Mapa de Mesas</a>
+                    {% endif %}
+                </div>
+                {% if total_mesas_ocupadas > 0 %}
+                <div class="row g-2">
+                    {% for mesa in mesas %}
+                    {% if mesa.estado == 'Ocupada' %}
+                    <div class="col-6 col-sm-4 col-md-3">
+                        <a href="{% url 'mesas' %}" class="text-decoration-none">
+                            <div class="p-2 rounded-3 border border-danger bg-danger bg-opacity-10 text-light text-center">
+                                <div class="fw-bold small">{{ mesa.numero }}</div>
+                                <small class="d-block text-danger fw-bold" style="font-size: 0.7rem;">{{ mesa.tiempo_transcurrido }}</small>
+                                <small class="text-warning font-monospace fw-bold" style="font-size: 0.75rem;">{{ mesa.consumo_formateado }}</small>
+                            </div>
+                        </a>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="p-4 rounded-3 border border-secondary bg-dark text-center text-secondary">
+                    <i class="bi bi-check-circle text-success fs-3 d-block mb-1"></i>
+                    <span class="small fw-semibold text-light">Todas las mesas están disponibles ({{ total_mesas }} libres).</span>
+                </div>
+                {% endif %}
             </div>
-            <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" type="button" data-bs-toggle="collapse" data-bs-target="#collapseModulos" aria-expanded="true">
-                <span class="small">Alternar Vista</span>
-                <i class="bi bi-chevron-expand"></i>
-            </button>
         </div>
 
-        <div class="collapse show" id="collapseModulos">
-            <div class="row g-2">
-                {% if 'pos' in permisos_usuario %}
-                <div class="col-6 col-md-3">
-                    <a href="{% url 'pos' %}" class="text-decoration-none">
-                        <div class="p-3 rounded-3 border border-secondary bg-dark hover-shadow text-white h-100 d-flex align-items-center gap-3">
-                            <div class="p-2 rounded-3 bg-warning text-dark fs-3"><i class="bi bi-calculator"></i></div>
-                            <div>
-                                <div class="fw-bold small">Punto de Venta</div>
-                                <small class="text-secondary" style="font-size: 0.72rem;">Atención táctil</small>
-                            </div>
-                        </div>
+        <!-- Accesos Directos Complementarios -->
+        <div class="col-lg-4">
+            <div class="card pos-card p-3 rounded-4 h-100">
+                <h6 class="fw-bold text-white mb-3 d-flex align-items-center gap-2">
+                    <i class="bi bi-lightning-charge-fill text-warning"></i>
+                    <span>Gestión Rápida de Turno</span>
+                </h6>
+                <div class="d-grid gap-2">
+                    {% if 'pos' in permisos_usuario %}
+                    <a href="{% url 'pos' %}" class="btn btn-outline-warning text-start fw-semibold d-flex align-items-center justify-content-between">
+                        <span><i class="bi bi-calculator me-2"></i>Ir a Punto de Venta</span>
+                        <i class="bi bi-chevron-right"></i>
                     </a>
-                </div>
-                {% endif %}
-                {% if 'cocina' in permisos_usuario %}
-                <div class="col-6 col-md-3">
-                    <a href="{% url 'cocina' %}" class="text-decoration-none">
-                        <div class="p-3 rounded-3 border border-secondary bg-dark hover-shadow text-white h-100 d-flex align-items-center gap-3">
-                            <div class="p-2 rounded-3 bg-danger text-white fs-3"><i class="bi bi-fire"></i></div>
-                            <div>
-                                <div class="fw-bold small">Cocina (KDS)</div>
-                                <small class="text-secondary" style="font-size: 0.72rem;">Comandas calientes</small>
-                            </div>
-                        </div>
+                    {% endif %}
+                    {% if 'reportes' in permisos_usuario %}
+                    <a href="{% url 'reportes' %}" class="btn btn-outline-light text-start fw-semibold d-flex align-items-center justify-content-between">
+                        <span><i class="bi bi-file-earmark-spreadsheet me-2 text-success"></i>Reportes y Exportación</span>
+                        <i class="bi bi-chevron-right"></i>
                     </a>
-                </div>
-                {% endif %}
-                {% if 'bar' in permisos_usuario %}
-                <div class="col-6 col-md-3">
-                    <a href="{% url 'bar' %}" class="text-decoration-none">
-                        <div class="p-3 rounded-3 border border-secondary bg-dark hover-shadow text-white h-100 d-flex align-items-center gap-3">
-                            <div class="p-2 rounded-3 bg-info text-dark fs-3"><i class="bi bi-cup-straw"></i></div>
-                            <div>
-                                <div class="fw-bold small">Bar (BDS)</div>
-                                <small class="text-secondary" style="font-size: 0.72rem;">Líquidos y postres</small>
-                            </div>
-                        </div>
+                    {% endif %}
+                    {% if 'estadisticas' in permisos_usuario %}
+                    <a href="{% url 'estadisticas' %}" class="btn btn-outline-info text-start fw-semibold d-flex align-items-center justify-content-between">
+                        <span><i class="bi bi-graph-up-arrow me-2"></i>Estadísticas y Curvas</span>
+                        <i class="bi bi-chevron-right"></i>
                     </a>
-                </div>
-                {% endif %}
-                {% if 'mesas' in permisos_usuario %}
-                <div class="col-6 col-md-3">
-                    <a href="{% url 'mesas' %}" class="text-decoration-none">
-                        <div class="p-3 rounded-3 border border-secondary bg-dark hover-shadow text-white h-100 d-flex align-items-center gap-3">
-                            <div class="p-2 rounded-3 bg-secondary text-white fs-3"><i class="bi bi-layout-text-window-reverse"></i></div>
-                            <div>
-                                <div class="fw-bold small">Mapa de Mesas</div>
-                                <small class="text-secondary" style="font-size: 0.72rem;">{{ total_mesas }} mesas salón</small>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                {% endif %}
-                {% if 'distribucion' in permisos_usuario %}
-                <div class="col-6 col-md-3">
-                    <a href="{% url 'distribucion' %}" class="text-decoration-none">
-                        <div class="p-3 rounded-3 border border-secondary bg-dark hover-shadow text-white h-100 d-flex align-items-center gap-3">
-                            <div class="p-2 rounded-3 bg-primary text-white fs-3"><i class="bi bi-diagram-3"></i></div>
-                            <div>
-                                <div class="fw-bold small">Distribución</div>
-                                <small class="text-secondary" style="font-size: 0.72rem;">Flujo de enrutamiento</small>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                {% endif %}
-                {% if 'productos' in permisos_usuario %}
-                <div class="col-6 col-md-3">
-                    <a href="{% url 'productos' %}" class="text-decoration-none">
-                        <div class="p-3 rounded-3 border border-secondary bg-dark hover-shadow text-white h-100 d-flex align-items-center gap-3">
-                            <div class="p-2 rounded-3 bg-secondary text-white fs-3"><i class="bi bi-boxes"></i></div>
-                            <div>
-                                <div class="fw-bold small">Productos</div>
-                                <small class="text-secondary" style="font-size: 0.72rem;">Catálogo y precios</small>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                {% endif %}
-                {% if 'fiados' in permisos_usuario %}
-                <div class="col-6 col-md-3">
-                    <a href="{% url 'fiados' %}" class="text-decoration-none">
-                        <div class="p-3 rounded-3 border border-secondary bg-dark hover-shadow text-white h-100 d-flex align-items-center gap-3">
-                            <div class="p-2 rounded-3 bg-success text-white fs-3"><i class="bi bi-journal-bookmark-fill"></i></div>
-                            <div>
-                                <div class="fw-bold small">Fiados Personal</div>
-                                <small class="text-secondary" style="font-size: 0.72rem;">Vales colaboradores</small>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                {% endif %}
-                {% if 'estadisticas' in permisos_usuario %}
-                <div class="col-6 col-md-3">
-                    <a href="{% url 'estadisticas' %}" class="text-decoration-none">
-                        <div class="p-3 rounded-3 border border-secondary bg-dark hover-shadow text-white h-100 d-flex align-items-center gap-3">
-                            <div class="p-2 rounded-3 bg-info bg-opacity-50 text-info fs-3"><i class="bi bi-graph-up-arrow"></i></div>
-                            <div>
-                                <div class="fw-bold small">Estadísticas</div>
-                                <small class="text-secondary" style="font-size: 0.72rem;">Curvas de venta</small>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-
-    <!-- Resumen Operativo de Salón -->
-    <div class="card pos-card p-3 rounded-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h6 class="fw-bold text-white mb-0 d-flex align-items-center gap-2">
-                <i class="bi bi-table text-info"></i>
-                <span>Estado Rápido de Salón ({{ total_mesas }} Mesas)</span>
-            </h6>
-            {% if 'mesas' in permisos_usuario %}
-            <a href="{% url 'mesas' %}" class="btn btn-sm btn-outline-info">Ver Plano Completo</a>
-            {% endif %}
-        </div>
-        <div class="row g-2">
-            {% for mesa in mesas %}
-            <div class="col-4 col-md-2">
-                <div class="p-2 rounded-3 border {% if mesa.estado == 'Ocupada' %}border-danger bg-danger bg-opacity-10 text-light{% elif mesa.estado == 'Reservada' %}border-warning bg-warning bg-opacity-10 text-light{% else %}border-success bg-success bg-opacity-10 text-light{% endif %} text-center">
-                    <div class="fw-bold small">{{ mesa.numero }}</div>
-                    <small class="d-block {% if mesa.estado == 'Ocupada' %}text-danger fw-bold{% elif mesa.estado == 'Reservada' %}text-warning fw-bold{% else %}text-success{% endif %}" style="font-size: 0.7rem;">
-                        {{ mesa.estado }}
-                    </small>
-                    <small class="text-secondary font-monospace" style="font-size: 0.65rem;">
-                        {% if mesa.estado == 'Ocupada' %}{{ mesa.tiempo_transcurrido }} &bull; {{ mesa.consumo_formateado }}{% else %}Libre{% endif %}
-                    </small>
+                    {% endif %}
                 </div>
             </div>
-            {% endfor %}
         </div>
     </div>
 </div>

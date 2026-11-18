@@ -5,7 +5,9 @@
      id="posWorkspace"
      data-procesar-url="{% url 'procesar_venta' %}"
      data-preselected-mesa="{{ mesa_preseleccionada|default:'' }}"
-     data-modo-mesa="{{ modo_mesa_inicial|default:'nueva' }}">
+     data-modo-mesa="{{ modo_mesa_inicial|default:'nueva' }}"
+     data-iva-incluido="{{ config.iva_incluido|yesno:'true,false' }}"
+     data-iva-porcentaje="{{ config.iva_porcentaje|default:'19' }}">
     <!-- ÁREA IZQUIERDA: CATÁLOGO TÁCTIL DE PRODUCTOS Y MENÚS -->
     <div class="pos-catalog-area">
         <!-- Barra de Categorías (Pills Táctiles) -->
@@ -324,8 +326,77 @@
                     </div>
                 </div>
 
+                <!-- Descuento al Cliente / Convenio Empresa -->
+                <div class="mb-3 p-3 rounded-3 bg-dark border border-warning border-opacity-50" id="convenioDescuentoSection">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="text-warning small fw-bold mb-0 d-flex align-items-center gap-1" for="inputDescuentoValor">
+                            <i class="bi bi-building-check"></i>
+                            <span>DESCUENTO CLIENTE / CONVENIO EMPRESA:</span>
+                        </label>
+                        <button type="button" class="btn btn-link btn-sm text-secondary p-0 text-decoration-none small" id="btnLimpiarConvenio" title="Quitar descuento">
+                            Limpiar
+                        </button>
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <select class="form-select form-select-sm bg-dark border-secondary text-white" id="selectConvenioPreset">
+                                <option value="">-- Sin convenio / Ninguno --</option>
+                                <option value="Convenio Empresa">Convenio Empresa</option>
+                                <option value="Caja de Compensación">Caja de Compensación</option>
+                                <option value="Convenio Municipalidad">Convenio Municipalidad</option>
+                                <option value="Delegación / Colegio">Delegación / Colegio</option>
+                                <option value="Socio Safari / VIP">Socio Safari / VIP</option>
+                                <option value="OTRO">Otra Empresa (Especificar)...</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <input type="text"
+                                   class="form-control form-control-sm bg-dark border-secondary text-white"
+                                   id="inputConvenioEmpresa"
+                                   maxlength="80"
+                                   placeholder="Nombre empresa o institución (opcional)">
+                        </div>
+                    </div>
+                    <div class="row g-2 align-items-center">
+                        <div class="col-5">
+                            <select class="form-select form-select-sm bg-dark border-secondary text-white" id="selectDescuentoTipo">
+                                <option value="porcentaje">% Porcentaje</option>
+                                <option value="monto">$ Monto fijo CLP</option>
+                            </select>
+                        </div>
+                        <div class="col-7">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-secondary bg-opacity-25 border-secondary text-warning fw-bold" id="descuentoSimboloAddon">%</span>
+                                <input type="number"
+                                       class="form-control bg-dark border-secondary text-white font-monospace fw-bold"
+                                       id="inputDescuentoValor"
+                                       min="0"
+                                       max="100"
+                                       step="1"
+                                       value="0"
+                                       placeholder="0">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-1 mt-2" id="quickDiscountButtons">
+                        <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 small quick-dcto-btn" data-tipo="porcentaje" data-valor="0">0%</button>
+                        <button type="button" class="btn btn-outline-warning btn-sm py-0 px-2 small quick-dcto-btn" data-tipo="porcentaje" data-valor="5">5%</button>
+                        <button type="button" class="btn btn-outline-warning btn-sm py-0 px-2 small quick-dcto-btn" data-tipo="porcentaje" data-valor="10">10%</button>
+                        <button type="button" class="btn btn-outline-warning btn-sm py-0 px-2 small quick-dcto-btn" data-tipo="porcentaje" data-valor="15">15%</button>
+                        <button type="button" class="btn btn-outline-warning btn-sm py-0 px-2 small quick-dcto-btn" data-tipo="porcentaje" data-valor="20">20%</button>
+                    </div>
+                </div>
+
                 <!-- Desglose Neto / IVA / Total -->
                 <div class="p-3 rounded-3 bg-dark border border-success mt-2">
+                    <div class="d-flex justify-content-between small text-secondary mb-1 d-none" id="confirmSubtotalBrutoRow">
+                        <span>Subtotal Productos:</span>
+                        <span class="font-monospace text-light text-decoration-line-through" id="confirmSubtotalBruto">$0</span>
+                    </div>
+                    <div class="d-flex justify-content-between small text-warning fw-bold mb-1 d-none" id="confirmDescuentoRow">
+                        <span id="confirmDescuentoLabel">Descuento Convenio:</span>
+                        <span class="font-monospace" id="confirmDescuento">-$0</span>
+                    </div>
                     <div class="d-flex justify-content-between small text-secondary mb-1">
                         <span>Subtotal Neto:</span>
                         <span class="font-monospace text-light" id="confirmSubtotal">$0</span>
@@ -390,6 +461,16 @@
                             <!-- Items inyectados desde respuesta del servidor -->
                         </div>
                         <div class="border-top border-dark pt-1 mt-1 small font-monospace">
+                            <div class="d-none" id="ticketDescuentoWrapper">
+                                <div class="d-flex justify-content-between">
+                                    <span>SUBTOTAL ITEMS:</span>
+                                    <span id="ticketSubtotalBruto">$0</span>
+                                </div>
+                                <div class="d-flex justify-content-between fw-bold">
+                                    <span id="ticketDescuentoLabel">DCTO. CONVENIO:</span>
+                                    <span id="ticketDescuentoMonto">-$0</span>
+                                </div>
+                            </div>
                             <div class="d-flex justify-content-between">
                                 <span>SUBTOTAL NETO:</span>
                                 <span id="ticketSubtotal">$0</span>

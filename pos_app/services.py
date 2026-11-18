@@ -123,7 +123,11 @@ def calcular_totales_clp(total_bruto_o_base: int, iva_incluido: bool = True, iva
     }
 
 
-def descomponer_menu_combo(menu_obj: MenuCombo, cantidad_combo: int = 1) -> list:
+def descomponer_menu_combo(
+    menu_obj: MenuCombo,
+    cantidad_combo: int = 1,
+    catalogo_productos=None,
+) -> list:
     """
     Descompone un `MenuCombo` en sus componentes operativos para Cocina (KDS),
     Bar (BDS) y Entrega Inmediata, consultando el catálogo real en PostgreSQL
@@ -135,9 +139,16 @@ def descomponer_menu_combo(menu_obj: MenuCombo, cantidad_combo: int = 1) -> list
     if menu_obj.codigo in CANONICAL_MENU_COMPONENTS:
         spec_list = CANONICAL_MENU_COMPONENTS[menu_obj.codigo]
         codigos = [s["codigo"] for s in spec_list]
-        productos_db = {
-            p.codigo: p for p in Producto.objects.filter(codigo__in=codigos)
-        }
+        if isinstance(catalogo_productos, dict):
+            productos_db = {p.codigo: p for p in catalogo_productos.values() if hasattr(p, "codigo")}
+        elif isinstance(catalogo_productos, (list, tuple)):
+            productos_db = {p.codigo: p for p in catalogo_productos if hasattr(p, "codigo")}
+        else:
+            productos_db = {}
+        if not productos_db:
+            productos_db = {
+                p.codigo: p for p in Producto.objects.filter(codigo__in=codigos)
+            }
         for spec in spec_list:
             prod = productos_db.get(spec["codigo"])
             if prod is not None:
@@ -160,7 +171,12 @@ def descomponer_menu_combo(menu_obj: MenuCombo, cantidad_combo: int = 1) -> list
 
     # Descomposición dinámica para menús personalizados creados en base de datos
     partes = [p.strip() for p in re.split(r"\+|,", menu_obj.productos_incluidos or "") if p.strip()]
-    catalogo = list(Producto.objects.all())
+    if isinstance(catalogo_productos, dict):
+        catalogo = list(catalogo_productos.values())
+    elif isinstance(catalogo_productos, (list, tuple)):
+        catalogo = list(catalogo_productos)
+    else:
+        catalogo = list(Producto.objects.all())
 
     for parte in partes:
         factor = 1
@@ -220,11 +236,11 @@ def descomponer_menu_combo(menu_obj: MenuCombo, cantidad_combo: int = 1) -> list
     return componentes_resultado
 
 
-def obtener_destinos_resumen_menu(menu_obj: MenuCombo) -> dict:
+def obtener_destinos_resumen_menu(menu_obj: MenuCombo, catalogo_productos=None) -> dict:
     """
     Determina qué estaciones intervienen en un MenuCombo para mostrarlo en la tarjeta del POS.
     """
-    comps = descomponer_menu_combo(menu_obj, cantidad_combo=1)
+    comps = descomponer_menu_combo(menu_obj, cantidad_combo=1, catalogo_productos=catalogo_productos)
     tiene_cocina = any(c["destino"] == "COCINA" for c in comps)
     tiene_bar = any(c["destino"] == "BAR" for c in comps)
     if tiene_cocina and tiene_bar:
@@ -237,9 +253,19 @@ def obtener_destinos_resumen_menu(menu_obj: MenuCombo) -> dict:
 
 
 def _generar_siguiente_venta_num() -> str:
-    """Genera un número de folio correlativo de 5 dígitos (ej. '00144') único en Venta."""
+    """
+    Genera un número de folio correlativo de 5 dígitos (ej. '00144') único en Venta.
+    Bloquea la última venta registrada (si existe) dentro de la transacción activa para
+    evitar colisiones concurrentes entre distintos operadores.
+    """
+    ultima_venta = Venta.objects.select_for_update().order_by("-id").first()
     numeros_existentes = []
-    for raw_num in Venta.objects.values_list("venta_num", flat=True):
+    if ultima_venta is not None:
+        digits_ult = re.sub(r"[^\d]", "", str(ultima_venta.venta_num or ""))
+        if digits_ult.isdigit():
+            numeros_existentes.append(int(digits_ult))
+
+    for raw_num in Venta.objects.order_by("-id").values_list("venta_num", flat=True)[:50]:
         digits = re.sub(r"[^\d]", "", str(raw_num or ""))
         if digits.isdigit():
             numeros_existentes.append(int(digits))
@@ -252,10 +278,169 @@ def _generar_siguiente_venta_num() -> str:
         base_num += 1
 
 
+CONVENIO_TAG_REGEX = re.compile(
+    r"^\[CONVENIO:(?P<empresa>[^|\]]+)\|TIPO:(?P<tipo>porcentaje|monto)\|VALOR:(?P<valor>[0-9.]+)\|DCTO:(?P<dcto>\d+)\|BRUTO:(?P<bruto>\d+)\]\s*",
+    re.IGNORECASE,
+)
+
+
+def _calcular_descuento_convenio(payload: dict, total_bruto: int) -> dict:
+    """
+    Valida y calcula en servidor el descuento al cliente por convenio empresa.
+    Ignora campos sueltos no estructurados (protección contra manipulación de DevTools).
+    Soporta `descuento_tipo` en ('porcentaje', 'monto') con `descuento_valor` >= 0.
+    """
+    bruto = max(0, int(total_bruto or 0))
+    descuento_tipo = str(payload.get("descuento_tipo") or "").strip().lower()
+    raw_valor = payload.get("descuento_valor")
+    convenio_empresa = str(payload.get("convenio_empresa") or "").strip()
+    convenio_empresa = re.sub(r"[\[\]\|]", " ", convenio_empresa).strip()[:80]
+
+    if descuento_tipo not in ("porcentaje", "monto") or raw_valor in (None, "", 0, "0", False):
+        return {
+            "tiene_descuento": False,
+            "descuento_tipo": "ninguno",
+            "descuento_valor": 0,
+            "descuento_monto": 0,
+            "descuento_fmt": "$0",
+            "convenio_empresa": "",
+            "descuento_label": "",
+            "total_bruto": bruto,
+            "total_bruto_fmt": format_clp(bruto),
+            "total_final": bruto,
+        }
+
+    if isinstance(raw_valor, bool):
+        raise PosDomainError("El valor de descuento proporcionado no es válido.")
+
+    if descuento_tipo == "porcentaje":
+        try:
+            pct = float(str(raw_valor).strip().replace(",", "."))
+        except (TypeError, ValueError):
+            raise PosDomainError("El porcentaje de descuento debe ser un valor numérico válido.")
+        if pct < 0 or pct > 100:
+            raise PosDomainError("El porcentaje de descuento debe estar entre 0% y 100%.")
+        if pct == 0:
+            return {
+                "tiene_descuento": False,
+                "descuento_tipo": "ninguno",
+                "descuento_valor": 0,
+                "descuento_monto": 0,
+                "descuento_fmt": "$0",
+                "convenio_empresa": "",
+                "descuento_label": "",
+                "total_bruto": bruto,
+                "total_bruto_fmt": format_clp(bruto),
+                "total_final": bruto,
+            }
+        valor_clean = int(pct) if pct.is_integer() else round(pct, 2)
+        descuento_monto = min(bruto, int(round(bruto * (pct / 100.0))))
+        empresa_nombre = convenio_empresa or "Convenio / Descuento Cliente"
+        label = f"{valor_clean}% ({empresa_nombre})"
+    else:
+        monto_fijo = _parse_non_negative_int(raw_valor, "monto de descuento", default=0)
+        if monto_fijo == 0:
+            return {
+                "tiene_descuento": False,
+                "descuento_tipo": "ninguno",
+                "descuento_valor": 0,
+                "descuento_monto": 0,
+                "descuento_fmt": "$0",
+                "convenio_empresa": "",
+                "descuento_label": "",
+                "total_bruto": bruto,
+                "total_bruto_fmt": format_clp(bruto),
+                "total_final": bruto,
+            }
+        if monto_fijo > bruto:
+            raise PosDomainError(
+                f"El monto de descuento ({format_clp(monto_fijo)}) no puede superar el subtotal de la venta ({format_clp(bruto)})."
+            )
+        valor_clean = monto_fijo
+        descuento_monto = monto_fijo
+        empresa_nombre = convenio_empresa or "Convenio / Descuento Cliente"
+        label = f"Convenio {empresa_nombre}"
+
+    total_final = max(0, bruto - descuento_monto)
+    return {
+        "tiene_descuento": descuento_monto > 0,
+        "descuento_tipo": descuento_tipo,
+        "descuento_valor": valor_clean,
+        "descuento_monto": descuento_monto,
+        "descuento_fmt": format_clp(descuento_monto),
+        "convenio_empresa": empresa_nombre,
+        "descuento_label": label,
+        "total_bruto": bruto,
+        "total_bruto_fmt": format_clp(bruto),
+        "total_final": total_final,
+    }
+
+
+def _construir_nota_con_convenio(notas_limpias: str, descuento_info: dict) -> str:
+    """Combina de forma estructurada el metadato de convenio con las notas de preparación."""
+    nota_base = (notas_limpias or "").strip()
+    if not descuento_info or not descuento_info.get("tiene_descuento"):
+        return nota_base
+    tag = (
+        f"[CONVENIO:{descuento_info['convenio_empresa']}"
+        f"|TIPO:{descuento_info['descuento_tipo']}"
+        f"|VALOR:{descuento_info['descuento_valor']}"
+        f"|DCTO:{descuento_info['descuento_monto']}"
+        f"|BRUTO:{descuento_info['total_bruto']}]"
+    )
+    return f"{tag} {nota_base}".strip() if nota_base else tag
+
+
+def _extraer_metadata_convenio(notas_raw: str, subtotal_items: int, total_venta: int) -> dict:
+    """
+    Extrae desde `Venta.notas` y la suma de `DetalleVenta` la información de descuento/convenio
+    y devuelve por separado las notas limpias de preparación.
+    """
+    raw = (notas_raw or "").strip()
+    match = CONVENIO_TAG_REGEX.match(raw)
+    if match:
+        empresa = match.group("empresa").strip()
+        tipo = match.group("tipo").lower()
+        val_str = match.group("valor")
+        valor = float(val_str) if "." in val_str else int(val_str)
+        dcto = int(match.group("dcto"))
+        bruto = int(match.group("bruto")) or max(int(subtotal_items or 0), int(total_venta or 0) + dcto)
+        notas_limpias = raw[match.end():].strip()
+        label = f"{valor}% ({empresa})" if tipo == "porcentaje" else f"Convenio {empresa}"
+        return {
+            "tiene_descuento": dcto > 0,
+            "convenio_empresa": empresa,
+            "descuento_tipo": tipo,
+            "descuento_valor": valor,
+            "descuento_monto": dcto,
+            "descuento_fmt": format_clp(dcto),
+            "descuento_label": label,
+            "subtotal_bruto": bruto,
+            "subtotal_bruto_fmt": format_clp(bruto),
+            "notas_limpias": notas_limpias,
+        }
+
+    bruto_calc = max(int(subtotal_items or 0), int(total_venta or 0))
+    dcto_diff = max(0, bruto_calc - int(total_venta or 0)) if subtotal_items > total_venta else 0
+    return {
+        "tiene_descuento": dcto_diff > 0,
+        "convenio_empresa": "Descuento Cliente" if dcto_diff > 0 else "",
+        "descuento_tipo": "monto" if dcto_diff > 0 else "ninguno",
+        "descuento_valor": dcto_diff,
+        "descuento_monto": dcto_diff,
+        "descuento_fmt": format_clp(dcto_diff),
+        "descuento_label": "Descuento Cliente" if dcto_diff > 0 else "",
+        "subtotal_bruto": bruto_calc,
+        "subtotal_bruto_fmt": format_clp(bruto_calc),
+        "notas_limpias": raw,
+    }
+
+
 def serializar_venta_completa(venta: Venta, config: ConfiguracionPOS = None) -> dict:
     """
     Construye la representación estructurada y verificada de una Venta persistida,
-    incluyendo sus líneas de ticket y las comandas de Cocina y Bar asociadas.
+    incluyendo sus líneas de ticket, desglose de descuento por convenio (si aplica)
+    y las comandas de Cocina y Bar asociadas.
     """
     if config is None:
         config = ConfiguracionPOS.objects.first()
@@ -268,12 +453,14 @@ def serializar_venta_completa(venta: Venta, config: ConfiguracionPOS = None) -> 
     detalles = list(venta.detalles.select_related("producto", "menu").all())
     comandas_map = {c.area_destino: c for c in venta.comandas.all()}
 
+    subtotal_items = sum(int(d.subtotal or 0) for d in detalles)
+    convenio_meta = _extraer_metadata_convenio(venta.notas, subtotal_items, venta.total)
+    nota_general = convenio_meta["notas_limpias"]
+
     items_ticket = []
     items_distribucion = []
     cocina_items = []
     bar_items = []
-
-    nota_general = (venta.notas or "").strip()
 
     for det in detalles:
         items_ticket.append(
@@ -343,6 +530,8 @@ def serializar_venta_completa(venta: Venta, config: ConfiguracionPOS = None) -> 
 
     comanda_cocina_obj = comandas_map.get("COCINA")
     comanda_bar_obj = comandas_map.get("BAR")
+    notas_cocina_clean = _extraer_metadata_convenio(comanda_cocina_obj.comentarios, 0, 0)["notas_limpias"] if comanda_cocina_obj else ""
+    notas_bar_clean = _extraer_metadata_convenio(comanda_bar_obj.comentarios, 0, 0)["notas_limpias"] if comanda_bar_obj else ""
 
     return {
         "id": venta.id,
@@ -355,6 +544,15 @@ def serializar_venta_completa(venta: Venta, config: ConfiguracionPOS = None) -> 
         "mesa_numero": venta.mesa.numero if venta.mesa else None,
         "garzon": cajero_nombre,
         "cajero": cajero_nombre,
+        "subtotal_bruto": convenio_meta["subtotal_bruto"],
+        "subtotal_bruto_fmt": convenio_meta["subtotal_bruto_fmt"],
+        "tiene_descuento": convenio_meta["tiene_descuento"],
+        "convenio_empresa": convenio_meta["convenio_empresa"],
+        "descuento_tipo": convenio_meta["descuento_tipo"],
+        "descuento_valor": convenio_meta["descuento_valor"],
+        "descuento_monto": convenio_meta["descuento_monto"],
+        "descuento_fmt": convenio_meta["descuento_fmt"],
+        "descuento_label": convenio_meta["descuento_label"],
         "subtotal": venta.subtotal,
         "subtotal_fmt": format_clp(venta.subtotal),
         "iva": venta.iva,
@@ -379,7 +577,7 @@ def serializar_venta_completa(venta: Venta, config: ConfiguracionPOS = None) -> 
                 "hora": hora_str,
                 "ubicacion": ubicacion_label,
                 "garzon": cajero_nombre,
-                "notas": comanda_cocina_obj.comentarios or nota_general or "Sin notas especiales",
+                "notas": notas_cocina_clean or nota_general or "Sin notas especiales",
                 "items": cocina_items,
             }
             if comanda_cocina_obj
@@ -392,7 +590,7 @@ def serializar_venta_completa(venta: Venta, config: ConfiguracionPOS = None) -> 
                 "hora": hora_str,
                 "ubicacion": ubicacion_label,
                 "garzon": cajero_nombre,
-                "notas": comanda_bar_obj.comentarios or nota_general or "Sin notas especiales",
+                "notas": notas_bar_clean or nota_general or "Sin notas especiales",
                 "items": bar_items,
             }
             if comanda_bar_obj
@@ -593,15 +791,17 @@ def procesar_venta_transaccional(
                         status_code=409,
                     )
 
-        # 5. Calcular Subtotal Neto, IVA (19%) y Total en CLP con la configuración vigente
+        # 5. Calcular Descuento por Convenio (si aplica) y Subtotal Neto, IVA y Total en CLP
+        descuento_info = _calcular_descuento_convenio(payload, total_bruto)
         config_pos = ConfiguracionPOS.objects.first()
         iva_incluido = config_pos.iva_incluido if config_pos else True
         iva_porcentaje = config_pos.iva_porcentaje if config_pos else Decimal("19.00")
         totales = calcular_totales_clp(
-            total_bruto,
+            descuento_info["total_final"],
             iva_incluido=iva_incluido,
             iva_porcentaje=iva_porcentaje,
         )
+        notas_con_convenio = _construir_nota_con_convenio(notas, descuento_info)
 
         # 6. Crear cabecera de Venta
         venta_num = _generar_siguiente_venta_num()
@@ -621,7 +821,7 @@ def procesar_venta_transaccional(
             metodo_pago=metodo_pago,
             estado="Pendiente" if es_mesa_diferida else "Pagado",
             boleta_emitida=not es_mesa_diferida,
-            notas=notas or None,
+            notas=notas_con_convenio or None,
         )
 
         # 7. Crear registros de DetalleVenta
@@ -680,51 +880,64 @@ def procesar_venta_transaccional(
                 mesa_obj.hora_inicio_ocupacion = timezone.now()
             mesa_obj.save()
 
-        # 10. Si es Vale Fiado y se especificó rut_fiado o fiado_id, registrar cargo en FiadoPersonal
+        # 10. Si es Vale Fiado, validar y registrar cargo en FiadoPersonal
         rut_fiado = str(payload.get("rut_fiado") or "").strip()
         fiado_id_raw = payload.get("fiado_id")
-        if metodo_pago == "Vale Fiado" and (rut_fiado or fiado_id_raw) and not es_mesa_diferida:
-            fiado_qs = FiadoPersonal.objects.select_for_update()
-            if fiado_id_raw not in (None, "") and str(fiado_id_raw).isdigit():
-                fiado_obj = fiado_qs.filter(pk=int(fiado_id_raw)).first()
+        if metodo_pago == "Vale Fiado" and not es_mesa_diferida:
+            if not (rut_fiado or fiado_id_raw):
+                if payload.get("require_fiado_account") or FiadoPersonal.objects.exclude(estado="Bloqueado").exists():
+                    raise PosDomainError(
+                        "Debe seleccionar un colaborador válido para imputar el Vale Fiado.",
+                        code="fiado_requerido",
+                    )
             else:
-                fiado_obj = fiado_qs.filter(rut__iexact=rut_fiado).first()
-            if fiado_obj is None:
-                raise PosDomainError("No existe cuenta de colaborador para el fiado indicado.")
-            if fiado_obj.estado in ("Bloqueado", "Excedido"):
-                raise PosDomainError(
-                    f"La cuenta de fiado de {fiado_obj.trabajador} se encuentra en estado '{fiado_obj.estado}'."
-                )
-            nuevo_acumulado = int(fiado_obj.total_acumulado) + int(totales["total"])
-            if nuevo_acumulado > int(fiado_obj.limite_credito):
-                disponible = max(0, int(fiado_obj.limite_credito) - int(fiado_obj.total_acumulado))
-                raise PosDomainError(
-                    f"El monto de {format_clp(totales['total'])} excede el cupo disponible de {fiado_obj.trabajador} "
-                    f"(Disponible: {format_clp(disponible)} / Límite: {format_clp(fiado_obj.limite_credito)}).",
-                    code="fiado_cupo_excedido",
-                )
-            fiado_obj.total_acumulado = nuevo_acumulado
-            fiado_obj.consumos_mes = (fiado_obj.consumos_mes or 0) + 1
-            fiado_obj.estado = "Por descontar"
-            fiado_obj.save()
+                fiado_qs = FiadoPersonal.objects.select_for_update()
+                if fiado_id_raw not in (None, "") and str(fiado_id_raw).isdigit():
+                    fiado_obj = fiado_qs.filter(pk=int(fiado_id_raw)).first()
+                else:
+                    fiado_obj = fiado_qs.filter(rut__iexact=rut_fiado).first()
+                if fiado_obj is None:
+                    raise PosDomainError("No existe cuenta de colaborador para el fiado indicado.")
+                if fiado_obj.estado in ("Bloqueado", "Excedido"):
+                    raise PosDomainError(
+                        f"La cuenta de fiado de {fiado_obj.trabajador} se encuentra en estado '{fiado_obj.estado}'."
+                    )
+                nuevo_acumulado = int(fiado_obj.total_acumulado) + int(totales["total"])
+                if nuevo_acumulado > int(fiado_obj.limite_credito):
+                    disponible = max(0, int(fiado_obj.limite_credito) - int(fiado_obj.total_acumulado))
+                    raise PosDomainError(
+                        f"El monto de {format_clp(totales['total'])} excede el cupo disponible de {fiado_obj.trabajador} "
+                        f"(Disponible: {format_clp(disponible)} / Límite: {format_clp(fiado_obj.limite_credito)}).",
+                        code="fiado_cupo_excedido",
+                    )
+                fiado_obj.total_acumulado = nuevo_acumulado
+                fiado_obj.consumos_mes = (fiado_obj.consumos_mes or 0) + 1
+                fiado_obj.estado = "Por descontar"
+                fiado_obj.save()
 
-            FiadoMovimiento.objects.create(
-                fiado=fiado_obj,
-                venta=venta,
-                detalle=f"Venta POS #{venta_num}",
-                cantidad=sum(l["cantidad"] for l in lineas_validadas),
-                monto=totales["total"],
-            )
+                if totales["total"] > 0:
+                    FiadoMovimiento.objects.create(
+                        fiado=fiado_obj,
+                        venta=venta,
+                        detalle=f"Venta POS #{venta_num}",
+                        cantidad=sum(l["cantidad"] for l in lineas_validadas),
+                        monto=totales["total"],
+                    )
 
         # 11. Registrar Auditoría con clave de idempotencia
         idem_prefix = f"[idem:{idempotency_key}]" if idempotency_key else ""
+        dcto_audit = (
+            f" [Convenio: {descuento_info['convenio_empresa'] or 'Cliente'} -{format_clp(descuento_info['descuento_monto'])}]"
+            if descuento_info["tiene_descuento"]
+            else ""
+        )
         LogAuditoria.objects.create(
             usuario=usuario_locked,
             accion="VENTA_CREADA",
             modulo="POS",
             descripcion=(
                 f"{idem_prefix}[venta:{venta_num}] Venta registrada en modalidad {modalidad} "
-                f"por {format_clp(totales['total'])} ({metodo_pago})."
+                f"por {format_clp(totales['total'])} ({metodo_pago}){dcto_audit}."
             ),
             ip_origen=ip_origen,
         )
@@ -882,6 +1095,11 @@ def avanzar_estado_comanda_transaccional(
         comanda.save()
 
         # Sincronizar el estado de producción en las líneas de DetalleVenta asociadas
+        comandas_venta = {
+            c.area_destino.upper(): c.estado
+            for c in comanda.venta.comandas.all()
+        }
+        comandas_venta[area] = target_estado
         detalles_venta = list(comanda.venta.detalles.select_related("menu").all())
         for det in detalles_venta:
             if det.destino == area:
@@ -889,9 +1107,20 @@ def avanzar_estado_comanda_transaccional(
                 det.save(update_fields=["estado_produccion"])
             elif det.menu_id and det.menu is not None:
                 comps = descomponer_menu_combo(det.menu, cantidad_combo=1)
-                if any(c["destino"] == area for c in comps):
-                    # Si el combo tiene componentes en esta área, reflejar el avance
-                    det.estado_produccion = target_estado
+                areas_combo = {c["destino"].upper() for c in comps if c.get("destino") in ("COCINA", "BAR")}
+                if area in areas_combo:
+                    if len(areas_combo) <= 1:
+                        det.estado_produccion = target_estado
+                    else:
+                        estados_areas = [comandas_venta.get(a, "Pendiente") for a in areas_combo]
+                        if all(e == "Entregado" for e in estados_areas):
+                            det.estado_produccion = "Entregado"
+                        elif all(e in ("Preparado", "Listo", "Entregado") for e in estados_areas):
+                            det.estado_produccion = estado_listo_estacion
+                        elif any(e in ("En preparación", "Preparado", "Listo", "Entregado") for e in estados_areas):
+                            det.estado_produccion = "En preparación"
+                        else:
+                            det.estado_produccion = "Pendiente"
                     det.save(update_fields=["estado_produccion"])
 
         LogAuditoria.objects.create(
@@ -924,12 +1153,18 @@ def operar_mesa_transaccional(
     mesa_origen_num: str,
     mesa_destino_num: str = None,
     metodo_pago: str = "Efectivo",
+    rut_fiado: str = None,
+    fiado_id: int = None,
+    descuento_tipo: str = None,
+    descuento_valor=None,
+    convenio_empresa: str = None,
     ip_origen: str = None,
 ) -> dict:
     """
     Ejecuta operaciones reales sobre mesas en PostgreSQL:
     - 'reasignar': traslada la ocupación y ventas pendientes de `mesa_origen` a `mesa_destino` libre.
-    - 'liberar' / 'cobrar': cierra las ventas pendientes de `mesa_origen` (emitiendo su boleta) y libera la mesa.
+    - 'liberar' / 'cobrar': cierra las ventas pendientes de `mesa_origen` (emitiendo su boleta, aplicando
+      descuento de convenio si corresponde e imputando Vale Fiado si aplica) y libera la mesa.
     """
     accion_norm = (accion or "").strip().lower()
     origen_str = (mesa_origen_num or "").strip()
@@ -1006,7 +1241,7 @@ def operar_mesa_transaccional(
             if m_origen is None:
                 raise PosDomainError(f"No existe la mesa '{origen_str}'.", status_code=404)
 
-            consumo_previo = m_origen.consumo_actual
+            consumo_previo = int(m_origen.consumo_actual or 0)
             sesion_abierta = (
                 SesionCaja.objects.select_for_update()
                 .filter(estado="Abierta")
@@ -1014,16 +1249,117 @@ def operar_mesa_transaccional(
                 .first()
             )
             ventas_pendientes = list(
-                Venta.objects.select_for_update().filter(mesa=m_origen, estado="Pendiente")
+                Venta.objects.select_for_update().filter(mesa=m_origen, estado="Pendiente").order_by("id")
             )
-            for v in ventas_pendientes:
+
+            metodo_norm = (metodo_pago or "Efectivo").strip()
+            if metodo_norm not in {"Efectivo", "Tarjeta Débito", "Tarjeta Crédito", "Vale Fiado", "Transferencia"}:
+                metodo_norm = "Efectivo"
+
+            total_bruto_mesa = sum(int(v.total) for v in ventas_pendientes) if ventas_pendientes else consumo_previo
+            descuento_info = _calcular_descuento_convenio(
+                {
+                    "descuento_tipo": descuento_tipo,
+                    "descuento_valor": descuento_valor,
+                    "convenio_empresa": convenio_empresa,
+                },
+                total_bruto_mesa,
+            )
+
+            config_pos = ConfiguracionPOS.objects.first()
+            iva_incluido = config_pos.iva_incluido if config_pos else True
+            iva_porcentaje = config_pos.iva_porcentaje if config_pos else Decimal("19.00")
+
+            # Distribuir el descuento (si existe) entre las ventas pendientes de la mesa
+            descuento_restante = int(descuento_info["descuento_monto"])
+            total_cerrado_final = 0
+            ultima_venta = None
+
+            for idx, v in enumerate(ventas_pendientes):
+                v_bruto = int(v.total)
+                if descuento_info["tiene_descuento"] and total_bruto_mesa > 0:
+                    if idx == len(ventas_pendientes) - 1:
+                        dcto_v = min(v_bruto, max(0, descuento_restante))
+                    else:
+                        dcto_v = min(
+                            v_bruto,
+                            int(round((v_bruto / total_bruto_mesa) * descuento_info["descuento_monto"])),
+                        )
+                        descuento_restante -= dcto_v
+                    nuevo_total_v = max(0, v_bruto - dcto_v)
+                    totales_v = calcular_totales_clp(
+                        nuevo_total_v,
+                        iva_incluido=iva_incluido,
+                        iva_porcentaje=iva_porcentaje,
+                    )
+                    v.subtotal = totales_v["subtotal"]
+                    v.iva = totales_v["iva"]
+                    v.total = totales_v["total"]
+
+                    meta_prev = _extraer_metadata_convenio(v.notas, v_bruto, v_bruto)
+                    info_v = {
+                        "tiene_descuento": dcto_v > 0,
+                        "descuento_tipo": descuento_info["descuento_tipo"],
+                        "descuento_valor": descuento_info["descuento_valor"],
+                        "descuento_monto": dcto_v,
+                        "convenio_empresa": descuento_info["convenio_empresa"],
+                        "total_bruto": v_bruto,
+                    }
+                    v.notas = _construir_nota_con_convenio(meta_prev["notas_limpias"], info_v) or None
+
                 v.estado = "Pagado"
                 v.boleta_emitida = True
-                if metodo_pago in {"Efectivo", "Tarjeta Débito", "Tarjeta Crédito", "Vale Fiado", "Transferencia"}:
-                    v.metodo_pago = metodo_pago
+                v.metodo_pago = metodo_norm
                 if v.sesion_caja_id is None and sesion_abierta is not None:
                     v.sesion_caja = sesion_abierta
                 v.save()
+                total_cerrado_final += int(v.total)
+                ultima_venta = v
+
+            if not ventas_pendientes:
+                total_cerrado_final = descuento_info["total_final"]
+
+            # Si el cierre de mesa es con Vale Fiado y hay consumo > 0, imputar al colaborador
+            rut_f = str(rut_fiado or "").strip()
+            if metodo_norm == "Vale Fiado" and total_cerrado_final > 0:
+                if not (rut_f or fiado_id):
+                    if FiadoPersonal.objects.exclude(estado="Bloqueado").exists():
+                        raise PosDomainError(
+                            "Debe seleccionar un colaborador válido para cobrar la mesa con Vale Fiado.",
+                            code="fiado_requerido",
+                        )
+                else:
+                    fiado_qs = FiadoPersonal.objects.select_for_update()
+                    if fiado_id not in (None, "") and str(fiado_id).isdigit():
+                        fiado_obj = fiado_qs.filter(pk=int(fiado_id)).first()
+                    else:
+                        fiado_obj = fiado_qs.filter(rut__iexact=rut_f).first()
+                    if fiado_obj is None:
+                        raise PosDomainError("No existe cuenta de colaborador para el fiado indicado.")
+                    if fiado_obj.estado in ("Bloqueado", "Excedido"):
+                        raise PosDomainError(
+                            f"La cuenta de fiado de {fiado_obj.trabajador} se encuentra en estado '{fiado_obj.estado}'."
+                        )
+                    nuevo_acum = int(fiado_obj.total_acumulado) + int(total_cerrado_final)
+                    if nuevo_acum > int(fiado_obj.limite_credito):
+                        disp = max(0, int(fiado_obj.limite_credito) - int(fiado_obj.total_acumulado))
+                        raise PosDomainError(
+                            f"El monto de {format_clp(total_cerrado_final)} excede el cupo disponible de {fiado_obj.trabajador} "
+                            f"(Disponible: {format_clp(disp)} / Límite: {format_clp(fiado_obj.limite_credito)}).",
+                            code="fiado_cupo_excedido",
+                        )
+                    fiado_obj.total_acumulado = nuevo_acum
+                    fiado_obj.consumos_mes = (fiado_obj.consumos_mes or 0) + 1
+                    fiado_obj.estado = "Por descontar"
+                    fiado_obj.save()
+
+                    FiadoMovimiento.objects.create(
+                        fiado=fiado_obj,
+                        venta=ultima_venta,
+                        detalle=f"Cierre {m_origen.numero}" + (f" (#{ultima_venta.venta_num})" if ultima_venta else ""),
+                        cantidad=max(1, len(ventas_pendientes)),
+                        monto=total_cerrado_final,
+                    )
 
             m_origen.estado = "Disponible"
             m_origen.consumo_actual = 0
@@ -1032,13 +1368,18 @@ def operar_mesa_transaccional(
             m_origen.hora_inicio_ocupacion = None
             m_origen.save()
 
+            dcto_str = (
+                f", Descuento Convenio ({descuento_info['convenio_empresa'] or 'Aplicado'}): -{format_clp(descuento_info['descuento_monto'])}"
+                if descuento_info["tiene_descuento"]
+                else ""
+            )
             LogAuditoria.objects.create(
                 usuario=usuario,
                 accion="MESA_REASIGNADA",
                 modulo="Mesas",
                 descripcion=(
                     f"Liberación y cierre de cuenta de {m_origen.numero} "
-                    f"(consumo cerrado: {format_clp(consumo_previo)})."
+                    f"(consumo cerrado: {format_clp(total_cerrado_final)}, medio: {metodo_norm}{dcto_str})."
                 ),
                 ip_origen=ip_origen,
             )
@@ -1046,8 +1387,17 @@ def operar_mesa_transaccional(
                 "accion": "liberar",
                 "mesa": m_origen.numero,
                 "ventas_cerradas": len(ventas_pendientes),
-                "consumo_cerrado": format_clp(consumo_previo),
-                "mensaje": f"{m_origen.numero} liberada y disponible para nuevos clientes.",
+                "metodo_pago": metodo_norm,
+                "consumo_bruto": format_clp(total_bruto_mesa),
+                "descuento_aplicado": format_clp(descuento_info["descuento_monto"]),
+                "tiene_descuento": descuento_info["tiene_descuento"],
+                "convenio_empresa": descuento_info["convenio_empresa"],
+                "consumo_cerrado": format_clp(total_cerrado_final),
+                "ultima_venta_num": ultima_venta.venta_num if ultima_venta else None,
+                "mensaje": (
+                    f"{m_origen.numero} cobrada ({format_clp(total_cerrado_final)} con {metodo_norm}) "
+                    "y liberada para nuevos clientes."
+                ),
             }
 
         else:
@@ -1150,14 +1500,20 @@ def obtener_catalogo_pos() -> dict:
 
     fiados_list = []
     for f in FiadoPersonal.objects.exclude(estado="Bloqueado").order_by("trabajador"):
+        disp = max(0, int(f.limite_credito) - int(f.total_acumulado))
+        disp_fmt = format_clp(disp)
         fiados_list.append(
             {
                 "id": f.id,
                 "rut": f.rut,
                 "trabajador": f.trabajador,
                 "cargo_grupo": f.cargo_grupo,
-                "disponible": max(0, f.limite_credito - f.total_acumulado),
-                "disponible_fmt": format_clp(max(0, f.limite_credito - f.total_acumulado)),
+                "estado": f.estado,
+                "limite_credito": f.limite_credito,
+                "total_acumulado": f.total_acumulado,
+                "disponible": disp,
+                "disponible_fmt": disp_fmt,
+                "saldo_disponible_formateado": disp_fmt,
             }
         )
 
@@ -1451,20 +1807,18 @@ def obtener_estado_caja_actual() -> dict:
         estado="Pagado",
     )
 
-    ventas_efectivo = (
-        ventas_sesion_qs.filter(metodo_pago="Efectivo").aggregate(t=Sum("total"))["t"] or 0
+    agg_sesion = ventas_sesion_qs.aggregate(
+        efectivo=Sum("total", filter=Q(metodo_pago="Efectivo")),
+        tarjetas=Sum("total", filter=Q(metodo_pago__in=["Tarjeta Débito", "Tarjeta Crédito"])),
+        transferencia=Sum("total", filter=Q(metodo_pago="Transferencia")),
+        fiado=Sum("total", filter=Q(metodo_pago="Vale Fiado")),
+        total_tx=Count("id"),
     )
-    ventas_tarjetas = (
-        ventas_sesion_qs.filter(metodo_pago__in=["Tarjeta Débito", "Tarjeta Crédito"]).aggregate(t=Sum("total"))["t"]
-        or 0
-    )
-    ventas_transferencia = (
-        ventas_sesion_qs.filter(metodo_pago="Transferencia").aggregate(t=Sum("total"))["t"] or 0
-    )
-    ventas_fiado = (
-        ventas_sesion_qs.filter(metodo_pago="Vale Fiado").aggregate(t=Sum("total"))["t"] or 0
-    )
-    total_tx = ventas_sesion_qs.count()
+    ventas_efectivo = int(agg_sesion["efectivo"] or 0)
+    ventas_tarjetas = int(agg_sesion["tarjetas"] or 0)
+    ventas_transferencia = int(agg_sesion["transferencia"] or 0)
+    ventas_fiado = int(agg_sesion["fiado"] or 0)
+    total_tx = int(agg_sesion["total_tx"] or 0)
 
     efectivo_esperado = int(sesion.monto_apertura) + int(ventas_efectivo)
     fa_local = (
@@ -1780,14 +2134,18 @@ def obtener_fiados_panel() -> dict:
             )
 
         cupo_disponible = max(0, int(f.limite_credito) - int(f.total_acumulado))
+        limite_fmt = format_clp(f.limite_credito)
+        acumulado_fmt = format_clp(f.total_acumulado)
         fiados_list.append(
             {
                 "id": f.id,
                 "rut": f.rut,
                 "trabajador": f.trabajador,
+                "cargo": f.cargo_grupo,
                 "cargo_grupo": f.cargo_grupo,
                 "limite_credito": f.limite_credito,
-                "limite_formateado": format_clp(f.limite_credito),
+                "limite_formateado": limite_fmt,
+                "limite_fmt": limite_fmt,
                 "cupo_disponible": cupo_disponible,
                 "cupo_formateado": format_clp(cupo_disponible),
                 "ultimo_producto": ultimo_prod,
@@ -1796,7 +2154,8 @@ def obtener_fiados_panel() -> dict:
                 "valor_formateado": ultimo_val_fmt,
                 "fecha": fecha_str,
                 "total_acumulado": f.total_acumulado,
-                "total_formateado": format_clp(f.total_acumulado),
+                "total_formateado": acumulado_fmt,
+                "acumulado_fmt": acumulado_fmt,
                 "consumos_mes": f.consumos_mes,
                 "estado": f.estado,
                 "movimientos": historial,
@@ -3000,7 +3359,16 @@ def obtener_estadisticas_operativas() -> dict:
     Calcula en tiempo real todos los indicadores de Dashboard y Estadísticas desde PostgreSQL
     sin utilizar `mock_data.py`.
     """
-    ventas_pagadas_qs = Venta.objects.filter(estado="Pagado")
+    hoy_local = timezone.localdate()
+    inicio_hoy = timezone.make_aware(datetime.combine(hoy_local, time.min))
+    fin_hoy = timezone.make_aware(datetime.combine(hoy_local, time.max))
+
+    ventas_hoy_qs = Venta.objects.filter(
+        estado="Pagado",
+        fecha_hora__gte=inicio_hoy,
+        fecha_hora__lte=fin_hoy,
+    )
+    ventas_pagadas_qs = ventas_hoy_qs if ventas_hoy_qs.exists() else Venta.objects.filter(estado="Pagado")
     agg_pagadas = ventas_pagadas_qs.aggregate(
         total_facturado=Sum("total"),
         subtotal_neto=Sum("subtotal"),
@@ -3208,6 +3576,11 @@ def obtener_reporte_operativo(
         elif v.estado == "Pendiente":
             suma_total_pendiente += int(v.total)
 
+        meta_conv = _extraer_metadata_convenio(v.notas, int(v.total), int(v.total))
+        sub_fmt = format_clp(v.subtotal)
+        iva_fmt = format_clp(v.iva)
+        tot_fmt = format_clp(v.total)
+
         ventas_rows.append(
             {
                 "id": v.id,
@@ -3217,11 +3590,19 @@ def obtener_reporte_operativo(
                 "atencion": v.mesa.numero if (v.modalidad == "MESA" and v.mesa) else v.modalidad,
                 "metodo_pago": v.metodo_pago,
                 "subtotal_int": v.subtotal,
-                "subtotal": format_clp(v.subtotal),
+                "subtotal": sub_fmt,
+                "subtotal_fmt": sub_fmt,
                 "iva_int": v.iva,
-                "iva": format_clp(v.iva),
+                "iva": iva_fmt,
+                "iva_fmt": iva_fmt,
                 "total_int": v.total,
-                "total": format_clp(v.total),
+                "total": tot_fmt,
+                "total_fmt": tot_fmt,
+                "tiene_descuento": meta_conv["tiene_descuento"],
+                "descuento_int": meta_conv["descuento_monto"],
+                "descuento_fmt": format_clp(meta_conv["descuento_monto"]),
+                "convenio": meta_conv["convenio_empresa"],
+                "descuento_label": meta_conv["descuento_label"],
                 "estado": v.estado,
                 "boleta_emitida": v.boleta_emitida,
             }
@@ -3232,25 +3613,40 @@ def obtener_reporte_operativo(
         venta__in=ventas_qs.exclude(estado="Anulado")
     )
     rotacion_map = {}
+    suma_ingresos_productos = 0
     for d in detalles_qs:
         key = d.nombre_item
+        cat_nom = (
+            "Menús y Combos"
+            if d.menu_id
+            else (d.producto.categoria.nombre if (d.producto_id and d.producto and d.producto.categoria) else "General")
+        )
         if key not in rotacion_map:
             rotacion_map[key] = {
                 "nombre": d.nombre_item,
+                "categoria": cat_nom,
                 "destino": d.destino,
                 "cantidad": 0,
                 "subtotal_int": 0,
             }
         rotacion_map[key]["cantidad"] += int(d.cantidad)
         rotacion_map[key]["subtotal_int"] += int(d.subtotal)
+        suma_ingresos_productos += int(d.subtotal)
 
-    productos_rows = [
-        {
-            **item,
-            "subtotal": format_clp(item["subtotal_int"]),
-        }
-        for item in sorted(rotacion_map.values(), key=lambda x: x["subtotal_int"], reverse=True)
-    ]
+    productos_sorted = sorted(rotacion_map.values(), key=lambda x: x["subtotal_int"], reverse=True)
+    productos_rows = []
+    for idx, item in enumerate(productos_sorted, start=1):
+        ing_fmt = format_clp(item["subtotal_int"])
+        part = round((item["subtotal_int"] / suma_ingresos_productos) * 100) if suma_ingresos_productos > 0 else 0
+        productos_rows.append(
+            {
+                **item,
+                "posicion": idx,
+                "subtotal": ing_fmt,
+                "ingresos_fmt": ing_fmt,
+                "participacion": part,
+            }
+        )
 
     # Tiempos de comandas en el período
     comandas_qs = ComandaProduccion.objects.select_related("venta", "venta__mesa", "venta__usuario").filter(
@@ -3264,15 +3660,27 @@ def obtener_reporte_operativo(
             if timezone.is_aware(c.fecha_hora_ingreso)
             else c.fecha_hora_ingreso
         )
+        if c.fecha_hora_despacho:
+            fd_loc = (
+                timezone.localtime(c.fecha_hora_despacho)
+                if timezone.is_aware(c.fecha_hora_despacho)
+                else c.fecha_hora_despacho
+            )
+            cierre_str = fd_loc.strftime("%d/%m/%Y %H:%M")
+        else:
+            cierre_str = "En curso"
         fin_ref = c.fecha_hora_despacho or ahora
         mins = max(1, int((fin_ref - c.fecha_hora_ingreso).total_seconds() // 60))
+        ingreso_str = fi_loc.strftime("%d/%m/%Y %H:%M")
         tiempos_rows.append(
             {
                 "codigo_comanda": c.codigo_comanda,
                 "venta_num": c.venta.venta_num if c.venta else "-",
                 "area": c.area_destino,
                 "ubicacion": c.venta.mesa.numero if (c.venta and c.venta.mesa) else (c.venta.modalidad if c.venta else "BAR"),
-                "ingreso": fi_loc.strftime("%d/%m/%Y %H:%M"),
+                "ingreso": ingreso_str,
+                "creacion": ingreso_str,
+                "cierre": cierre_str,
                 "duracion": f"{mins} min",
                 "estado": c.estado,
             }
@@ -3289,37 +3697,49 @@ def obtener_reporte_operativo(
         "caja": "Reporte de Sesiones de Caja y Cuadraturas",
     }
 
+    registros_map = {
+        "ventas": ventas_rows,
+        "productos": productos_rows,
+        "tiempos": tiempos_rows,
+        "fiados": fiados_panel["fiados"],
+        "caja": caja_panel["ultimos_cierres"],
+    }
+    etiquetas_total_map = {
+        "ventas": "TOTAL FACTURADO EN PERÍODO",
+        "productos": "TOTAL INGRESOS POR PRODUCTOS",
+        "tiempos": "COMANDAS PROCESADAS",
+        "fiados": "DEUDA TOTAL ACUMULADA",
+        "caja": "SESIONES DE CAJA REGISTRADAS",
+    }
+    totales_fmt_map = {
+        "ventas": format_clp(suma_total_pagado),
+        "productos": format_clp(suma_ingresos_productos),
+        "tiempos": f"{len(tiempos_rows)} comandas",
+        "fiados": fiados_panel["deuda_total"],
+        "caja": f"{len(caja_panel['ultimos_cierres'])} cierres",
+    }
+
+    fecha_desde_lbl = desde_date.strftime("%d/%m/%Y") if desde_date else "Inicio histórico"
+    fecha_hasta_lbl = hasta_date.strftime("%d/%m/%Y") if hasta_date else hoy_local.strftime("%d/%m/%Y")
+
     return {
         "tipo_reporte": tipo,
+        "titulo": titulos_map[tipo],
         "titulo_reporte": titulos_map[tipo],
         "fecha_desde": desde_date.strftime("%Y-%m-%d") if desde_date else "",
         "fecha_hasta": hasta_date.strftime("%Y-%m-%d") if hasta_date else hoy_local.strftime("%Y-%m-%d"),
-        "periodo_label": (
-            f"{desde_date.strftime('%d/%m/%Y') if desde_date else 'Inicio histórico'} al "
-            f"{hasta_date.strftime('%d/%m/%Y') if hasta_date else hoy_local.strftime('%d/%m/%Y')}"
-        ),
+        "fecha_desde_label": fecha_desde_lbl,
+        "fecha_hasta_label": fecha_hasta_lbl,
+        "periodo_label": f"{fecha_desde_lbl} al {fecha_hasta_lbl}",
+        "registros": registros_map[tipo],
+        "etiqueta_total": etiquetas_total_map[tipo],
+        "total_filtrado_fmt": totales_fmt_map[tipo],
         "ventas_rows": ventas_rows,
         "productos_rows": productos_rows,
         "tiempos_rows": tiempos_rows,
         "fiados_rows": fiados_panel["fiados"],
         "cierres_caja_rows": caja_panel["ultimos_cierres"],
-        "total_registros": (
-            len(ventas_rows)
-            if tipo == "ventas"
-            else (
-                len(productos_rows)
-                if tipo == "productos"
-                else (
-                    len(tiempos_rows)
-                    if tipo == "tiempos"
-                    else (
-                        len(fiados_panel["fiados"])
-                        if tipo == "fiados"
-                        else len(caja_panel["ultimos_cierres"])
-                    )
-                )
-            )
-        ),
+        "total_registros": len(registros_map[tipo]),
         "suma_subtotal": format_clp(suma_subtotal),
         "suma_iva": format_clp(suma_iva),
         "suma_total_pagado_int": suma_total_pagado,

@@ -168,10 +168,115 @@ let currentCheckoutIdempotencyKey = null;
 let isSubmittingSale = false;
 
 function calcularDesgloseCLP(totalBruto) {
-    const total = Math.max(0, Math.round(Number(totalBruto) || 0));
-    const subtotalNeto = Math.round(total / 1.19);
-    const iva = total - subtotalNeto;
-    return { subtotalNeto, iva, total };
+    const workspace = document.getElementById('posWorkspace');
+    const ivaIncluidoAttr = workspace?.dataset.ivaIncluido;
+    const ivaIncluido = ivaIncluidoAttr ? ivaIncluidoAttr === 'true' : true;
+    const ivaPctRaw = parseFloat(workspace?.dataset.ivaPorcentaje || '19');
+    const ivaPct = (!Number.isNaN(ivaPctRaw) && ivaPctRaw >= 0) ? ivaPctRaw : 19;
+    const tasa = ivaPct / 100;
+
+    const montoBase = Math.max(0, Math.round(Number(totalBruto) || 0));
+    if (ivaIncluido) {
+        const subtotalNeto = Math.round(montoBase / (1 + tasa));
+        const iva = montoBase - subtotalNeto;
+        return { subtotalNeto, iva, total: montoBase };
+    }
+    const subtotalNeto = montoBase;
+    const iva = Math.round(subtotalNeto * tasa);
+    return { subtotalNeto, iva, total: subtotalNeto + iva };
+}
+
+function obtenerTotalBrutoCarrito() {
+    return cart.reduce((acc, item) => acc + (item.precio * item.cantidad), 0);
+}
+
+function obtenerEstadoConvenioUI(totalBruto) {
+    const tipoEl = document.getElementById('selectDescuentoTipo');
+    const valorEl = document.getElementById('inputDescuentoValor');
+    const presetEl = document.getElementById('selectConvenioPreset');
+    const empresaEl = document.getElementById('inputConvenioEmpresa');
+
+    const tipo = (tipoEl?.value || 'porcentaje').toLowerCase();
+    const rawVal = Math.max(0, Math.round(Number(valorEl?.value) || 0));
+    const presetVal = (presetEl?.value || '').trim();
+    const customEmpresa = (empresaEl?.value || '').trim();
+    let convenioNombre = customEmpresa;
+    if (!convenioNombre && presetVal && presetVal !== 'OTRO') {
+        convenioNombre = presetVal;
+    }
+
+    let valorAplicado = rawVal;
+    let descuentoMonto = 0;
+    if (tipo === 'porcentaje') {
+        valorAplicado = Math.min(100, rawVal);
+        descuentoMonto = Math.round((totalBruto * valorAplicado) / 100);
+    } else {
+        valorAplicado = Math.min(totalBruto, rawVal);
+        descuentoMonto = valorAplicado;
+    }
+    descuentoMonto = Math.max(0, Math.min(totalBruto, descuentoMonto));
+    const totalConDescuento = Math.max(0, totalBruto - descuentoMonto);
+
+    return {
+        tieneDescuento: descuentoMonto > 0,
+        tipo,
+        valor: valorAplicado,
+        descuentoMonto,
+        totalBruto,
+        totalConDescuento,
+        convenioEmpresa: convenioNombre || (descuentoMonto > 0 ? 'Convenio Cliente' : ''),
+    };
+}
+
+function actualizarResumenConfirmacion() {
+    const totalBruto = obtenerTotalBrutoCarrito();
+    const infoDcto = obtenerEstadoConvenioUI(totalBruto);
+    const desglose = calcularDesgloseCLP(infoDcto.totalConDescuento);
+
+    const subBrutoRow = document.getElementById('confirmSubtotalBrutoRow');
+    const subBrutoEl = document.getElementById('confirmSubtotalBruto');
+    const dctoRow = document.getElementById('confirmDescuentoRow');
+    const dctoLabelEl = document.getElementById('confirmDescuentoLabel');
+    const dctoEl = document.getElementById('confirmDescuento');
+    const subEl = document.getElementById('confirmSubtotal');
+    const ivaEl = document.getElementById('confirmIva');
+    const totalEl = document.getElementById('confirmTotal');
+
+    if (infoDcto.tieneDescuento) {
+        if (subBrutoRow) subBrutoRow.classList.remove('d-none');
+        if (subBrutoEl) subBrutoEl.textContent = formatCLP(totalBruto);
+        if (dctoRow) dctoRow.classList.remove('d-none');
+        if (dctoLabelEl) {
+            const sufijo = infoDcto.tipo === 'porcentaje' ? ` (${infoDcto.valor}%)` : '';
+            dctoLabelEl.textContent = `Dcto. ${infoDcto.convenioEmpresa}${sufijo}:`;
+        }
+        if (dctoEl) dctoEl.textContent = `-${formatCLP(infoDcto.descuentoMonto)}`;
+    } else {
+        if (subBrutoRow) subBrutoRow.classList.add('d-none');
+        if (dctoRow) dctoRow.classList.add('d-none');
+    }
+
+    if (subEl) subEl.textContent = formatCLP(desglose.subtotalNeto);
+    if (ivaEl) ivaEl.textContent = formatCLP(desglose.iva);
+    if (totalEl) totalEl.textContent = formatCLP(desglose.total);
+}
+
+function limpiarControlesConvenio() {
+    const tipoEl = document.getElementById('selectDescuentoTipo');
+    const valorEl = document.getElementById('inputDescuentoValor');
+    const presetEl = document.getElementById('selectConvenioPreset');
+    const empresaEl = document.getElementById('inputConvenioEmpresa');
+    const addonEl = document.getElementById('descuentoSimboloAddon');
+
+    if (presetEl) presetEl.value = '';
+    if (empresaEl) empresaEl.value = '';
+    if (tipoEl) tipoEl.value = 'porcentaje';
+    if (addonEl) addonEl.textContent = '%';
+    if (valorEl) {
+        valorEl.value = '0';
+        valorEl.max = '100';
+    }
+    actualizarResumenConfirmacion();
 }
 
 function initPosEngine() {
@@ -342,6 +447,81 @@ function initPosEngine() {
                     fiadoWrapper.classList.add('d-none');
                 }
             }
+        });
+    });
+
+    // Controles de Descuento al Cliente / Convenio Empresa
+    const selectTipoDcto = document.getElementById('selectDescuentoTipo');
+    const inputValorDcto = document.getElementById('inputDescuentoValor');
+    const selectConvenioPreset = document.getElementById('selectConvenioPreset');
+    const inputConvenioEmpresa = document.getElementById('inputConvenioEmpresa');
+    const addonSimbolo = document.getElementById('descuentoSimboloAddon');
+    const btnLimpiarConvenio = document.getElementById('btnLimpiarConvenio');
+    const quickDctoBtns = document.querySelectorAll('.quick-dcto-btn');
+
+    if (selectTipoDcto) {
+        selectTipoDcto.addEventListener('change', () => {
+            const esPct = selectTipoDcto.value === 'porcentaje';
+            if (addonSimbolo) addonSimbolo.textContent = esPct ? '%' : '$';
+            if (inputValorDcto) {
+                if (esPct) {
+                    inputValorDcto.max = '100';
+                    if (Number(inputValorDcto.value) > 100) inputValorDcto.value = '100';
+                } else {
+                    inputValorDcto.removeAttribute('max');
+                }
+            }
+            actualizarResumenConfirmacion();
+        });
+    }
+
+    if (inputValorDcto) {
+        inputValorDcto.addEventListener('input', () => {
+            if (selectConvenioPreset && !selectConvenioPreset.value && Number(inputValorDcto.value) > 0) {
+                selectConvenioPreset.value = 'Convenio Empresa';
+            }
+            actualizarResumenConfirmacion();
+        });
+    }
+
+    if (selectConvenioPreset) {
+        selectConvenioPreset.addEventListener('change', () => {
+            if (selectConvenioPreset.value === 'OTRO' && inputConvenioEmpresa) {
+                inputConvenioEmpresa.focus();
+            } else if (!selectConvenioPreset.value && inputValorDcto && (!inputConvenioEmpresa || !inputConvenioEmpresa.value.trim())) {
+                inputValorDcto.value = '0';
+            }
+            actualizarResumenConfirmacion();
+        });
+    }
+
+    if (inputConvenioEmpresa) {
+        inputConvenioEmpresa.addEventListener('input', () => {
+            actualizarResumenConfirmacion();
+        });
+    }
+
+    if (btnLimpiarConvenio) {
+        btnLimpiarConvenio.addEventListener('click', () => {
+            limpiarControlesConvenio();
+        });
+    }
+
+    quickDctoBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const val = parseInt(btn.dataset.valor || '0', 10);
+            if (selectTipoDcto) selectTipoDcto.value = 'porcentaje';
+            if (addonSimbolo) addonSimbolo.textContent = '%';
+            if (inputValorDcto) {
+                inputValorDcto.max = '100';
+                inputValorDcto.value = String(val);
+            }
+            if (val > 0 && selectConvenioPreset && !selectConvenioPreset.value) {
+                selectConvenioPreset.value = 'Convenio Empresa';
+            } else if (val === 0 && selectConvenioPreset && (!inputConvenioEmpresa || !inputConvenioEmpresa.value.trim())) {
+                selectConvenioPreset.value = '';
+            }
+            actualizarResumenConfirmacion();
         });
     });
 
@@ -519,12 +699,7 @@ function openConfirmModal() {
         `;
     });
 
-    const desglose = calcularDesgloseCLP(totalBruto);
-
     if (listEl) listEl.innerHTML = itemsHtml;
-    if (subEl) subEl.textContent = formatCLP(desglose.subtotalNeto);
-    if (ivaEl) ivaEl.textContent = formatCLP(desglose.iva);
-    if (totalEl) totalEl.textContent = formatCLP(desglose.total);
     if (modEl) {
         modEl.textContent = modalidad === 'MESA'
             ? `Atención en ${mesaSeleccionada || 'Mesa no especificada'} (Boleta Diferida)`
@@ -534,6 +709,8 @@ function openConfirmModal() {
         const noteText = notesInput?.value.trim() || 'Sin comentarios adicionales.';
         noteEl.textContent = noteText;
     }
+
+    actualizarResumenConfirmacion();
 
     const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
     modal.show();
@@ -552,6 +729,18 @@ async function submitSaleToServer() {
     const fiadoSelect = document.getElementById('selectColaboradorFiado');
     const rutFiado = (metodoPago === 'Vale Fiado' && fiadoSelect) ? fiadoSelect.value.trim() : '';
 
+    if (metodoPago === 'Vale Fiado' && modalidad !== 'MESA' && !rutFiado) {
+        if (errBox) {
+            errBox.textContent = 'Debe seleccionar un colaborador de la lista para imputar el Vale Fiado.';
+            errBox.classList.remove('d-none');
+        }
+        if (fiadoSelect) fiadoSelect.focus();
+        return;
+    }
+
+    const totalBruto = obtenerTotalBrutoCarrito();
+    const infoDcto = obtenerEstadoConvenioUI(totalBruto);
+
     if (!currentCheckoutIdempotencyKey) {
         currentCheckoutIdempotencyKey = generateIdempotencyKey();
     }
@@ -563,6 +752,10 @@ async function submitSaleToServer() {
         modo_mesa: modalidad === 'MESA' ? modoMesaActual : 'nueva',
         metodo_pago: metodoPago,
         rut_fiado: rutFiado || null,
+        require_fiado_account: metodoPago === 'Vale Fiado' && modalidad !== 'MESA',
+        descuento_tipo: infoDcto.tieneDescuento ? infoDcto.tipo : null,
+        descuento_valor: infoDcto.tieneDescuento ? infoDcto.valor : 0,
+        convenio_empresa: infoDcto.tieneDescuento ? infoDcto.convenioEmpresa : '',
         notas: notesInput ? notesInput.value.trim() : '',
         items: cart.map(item => ({
             tipo: item.itemType || 'producto',
@@ -629,6 +822,7 @@ async function submitSaleToServer() {
         cart = [];
         currentCheckoutIdempotencyKey = null;
         if (notesInput) notesInput.value = '';
+        limpiarControlesConvenio();
         if (modalidad === 'MESA') {
             mesaSeleccionada = null;
             modoMesaActual = 'nueva';
@@ -689,6 +883,22 @@ function showTicketModalFromServer(venta) {
                 <span>${it.subtotal_fmt}</span>
             </div>
         `).join('');
+    }
+
+    const ticketDctoWrapper = document.getElementById('ticketDescuentoWrapper');
+    const ticketSubBrutoEl = document.getElementById('ticketSubtotalBruto');
+    const ticketDctoLabelEl = document.getElementById('ticketDescuentoLabel');
+    const ticketDctoMontoEl = document.getElementById('ticketDescuentoMonto');
+
+    if (ticketDctoWrapper) {
+        if (venta.tiene_descuento) {
+            ticketDctoWrapper.classList.remove('d-none');
+            if (ticketSubBrutoEl) ticketSubBrutoEl.textContent = venta.subtotal_bruto_fmt || venta.total_fmt;
+            if (ticketDctoLabelEl) ticketDctoLabelEl.textContent = `DCTO. (${venta.descuento_label || 'Convenio'}):`;
+            if (ticketDctoMontoEl) ticketDctoMontoEl.textContent = `-${venta.descuento_fmt}`;
+        } else {
+            ticketDctoWrapper.classList.add('d-none');
+        }
     }
 
     if (ticketSubtotalEl) ticketSubtotalEl.textContent = venta.subtotal_fmt;

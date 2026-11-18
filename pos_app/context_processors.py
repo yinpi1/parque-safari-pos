@@ -171,22 +171,25 @@ def pos_auth_context(request):
     nav_cocina_activos = 0
     nav_bar_activos = 0
     try:
+        from django.db.models import Count, Q
         from .models import ComandaProduccion, Mesa
         from .services import obtener_estado_caja_actual
 
         if 'caja_operacion' in permisos:
             caja_estado = obtener_estado_caja_actual()
         nav_mesas_total = Mesa.objects.count()
-        nav_cocina_activos = (
-            ComandaProduccion.objects.filter(area_destino='COCINA')
-            .exclude(estado__in=['Preparado', 'Entregado'])
-            .count()
+        cmd_counts = ComandaProduccion.objects.aggregate(
+            cocina=Count(
+                'id',
+                filter=Q(area_destino='COCINA') & ~Q(estado__in=['Preparado', 'Entregado']),
+            ),
+            bar=Count(
+                'id',
+                filter=Q(area_destino='BAR') & ~Q(estado__in=['Listo', 'Entregado']),
+            ),
         )
-        nav_bar_activos = (
-            ComandaProduccion.objects.filter(area_destino='BAR')
-            .exclude(estado__in=['Listo', 'Entregado'])
-            .count()
-        )
+        nav_cocina_activos = cmd_counts.get('cocina') or 0
+        nav_bar_activos = cmd_counts.get('bar') or 0
     except Exception:
         pass
 

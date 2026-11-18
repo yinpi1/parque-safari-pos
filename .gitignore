@@ -5,11 +5,13 @@ __pycache__/
 *.so
 .Python
 
-# Virtual Environment
+# Virtual Environment & Secrets
 venv/
 env/
 ENV/
 .env
+env
+gitignore.txt
 
 # Django
 *.log

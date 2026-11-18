@@ -195,6 +195,11 @@
                             <span class="badge {% if r.metodo_pago == 'Efectivo' %}bg-success{% elif r.metodo_pago == 'Vale Fiado' %}bg-warning text-dark{% else %}bg-info text-dark{% endif %}">
                                 {{ r.metodo_pago }}
                             </span>
+                            {% if r.tiene_descuento %}
+                            <span class="badge bg-warning bg-opacity-25 text-warning border border-warning border-opacity-50 ms-1" title="{{ r.descuento_label }}">
+                                <i class="bi bi-building-check me-1"></i>-{{ r.descuento_fmt }}
+                            </span>
+                            {% endif %}
                         </td>
                         <td class="font-monospace">{{ r.subtotal_fmt }}</td>
                         <td class="font-monospace text-secondary">{{ r.iva_fmt }}</td>

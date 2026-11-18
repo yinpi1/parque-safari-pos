@@ -7,7 +7,15 @@
             <h2 class="fw-bold mb-1 text-white">Módulo de Menús y Combos</h2>
             <p class="text-secondary mb-0">Gestión persistente en PostgreSQL de paquetes promocionales y su descomposición hacia Cocina (KDS) y Bar (BDS).</p>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <div class="btn-group" role="group" aria-label="Modo de vista">
+                <button type="button" class="btn btn-outline-light btn-sm active" id="btnMenusVistaTarjetas" onclick="alternarVistaMenus('tarjetas')">
+                    <i class="bi bi-grid-fill me-1"></i> Tarjetas
+                </button>
+                <button type="button" class="btn btn-outline-light btn-sm" id="btnMenusVistaTabla" onclick="alternarVistaMenus('tabla')">
+                    <i class="bi bi-table me-1"></i> Tabla
+                </button>
+            </div>
             <button class="btn btn-warning fw-bold d-flex align-items-center gap-2 px-3 shadow" onclick="abrirModalMenuNuevo()">
                 <i class="bi bi-stars fs-5"></i>
                 <span>NUEVO MENÚ / COMBO</span>
@@ -16,7 +24,7 @@
     </div>
 
     <!-- Grid de Combos Destacados -->
-    <div class="row g-3 mb-4">
+    <div class="row g-3 mb-4" id="menusTarjetasView">
         {% for m in menus %}
         <div class="col-md-6 col-xl-3">
             <div class="card bg-dark border-secondary h-100 p-3 rounded-4 position-relative d-flex flex-column">
@@ -71,9 +79,10 @@
         {% endfor %}
     </div>
 
-    <!-- Tabla de Control de Menús -->
-    <h5 class="fw-bold text-white mb-3">Detalle Operativo de Combos ({{ total_menus }} registrados &bull; {{ total_activos }} activos)</h5>
-    <div class="table-responsive">
+    <!-- Tabla de Control de Menús (Oculta por defecto para evitar duplicación visual) -->
+    <div id="menusTablaView" class="d-none">
+        <h5 class="fw-bold text-white mb-3">Detalle Operativo de Combos ({{ total_menus }} registrados &bull; {{ total_activos }} activos)</h5>
+        <div class="table-responsive">
         <table class="pos-table-custom">
             <thead>
                 <tr>
@@ -121,6 +130,7 @@
                 {% endfor %}
             </tbody>
         </table>
+        </div>
     </div>
 </div>
 
@@ -200,6 +210,25 @@
 </div>
 
 <script>
+function alternarVistaMenus(modo) {
+    const tarjetas = document.getElementById('menusTarjetasView');
+    const tabla = document.getElementById('menusTablaView');
+    const btnT = document.getElementById('btnMenusVistaTarjetas');
+    const btnL = document.getElementById('btnMenusVistaTabla');
+    if (!tarjetas || !tabla) return;
+    if (modo === 'tabla') {
+        tarjetas.classList.add('d-none');
+        tabla.classList.remove('d-none');
+        btnL?.classList.add('active');
+        btnT?.classList.remove('active');
+    } else {
+        tabla.classList.add('d-none');
+        tarjetas.classList.remove('d-none');
+        btnT?.classList.add('active');
+        btnL?.classList.remove('active');
+    }
+}
+
 function getCsrfTokenMenus() {
     const el = document.querySelector('#logoutForm input[name="csrfmiddlewaretoken"]');
     return el ? el.value : '';
